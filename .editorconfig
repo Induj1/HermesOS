@@ -1,0 +1,27 @@
+# Editor defaults that apply before Prettier runs — and to the files Prettier
+# does not format (Justfile, .env, SQL). Keep the values here in agreement with
+# .prettierrc.json; where they disagree, Prettier wins for the files it owns.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 88
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[{Justfile,justfile,*.just}]
+# just recipe bodies are indentation-sensitive.
+indent_size = 4
+
+[*.{yml,yaml,json,jsonc}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab

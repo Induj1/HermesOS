@@ -1,0 +1,16 @@
+# Generated or vendored — never hand-formatted.
+node_modules/
+dist/
+build/
+coverage/
+pnpm-lock.yaml
+.pnpm-store/
+
+# Prettier's YAML printer rewrites the anchors and merge keys in
+# docker-compose.yml, and its Markdown printer reflows the docs that were
+# written to a deliberate width. Both are maintained by hand.
+docker-compose.yml
+
+# Not Prettier's languages.
+*.sql
+Justfile

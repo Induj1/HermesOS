@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    // Node 22 implements all of ES2023 natively, so nothing is down-levelled.
+    // Raise this only when the minimum Node in .nvmrc rises with it.
+    "target": "es2023",
+    "lib": ["es2023"],
+
+    // nodenext makes tsc resolve modules exactly the way Node does at runtime,
+    // which means it enforces the rules the runtime will: relative ESM imports
+    // need a file extension (`./foo.js`, even from foo.ts), and the package.json
+    // "type" field decides how each file is interpreted. Anything looser lets
+    // tsc accept imports that crash under `node dist/index.js`.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+
+    "strict": true,
+    // Beyond `strict`. Each of these turns a class of runtime bug into a
+    // compile error, and each is far cheaper to adopt now than once there is
+    // code to retrofit.
+    //
+    // arr[0] is T | undefined rather than T — the single most common source of
+    // "cannot read properties of undefined" in otherwise strict code.
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    // Reaching into an index signature must use env['KEY'], so a typo in a
+    // known property name cannot silently resolve as a dynamic lookup.
+    "noPropertyAccessFromIndexSignature": true,
+    // Distinguishes "absent" from "present and undefined", which matters for
+    // config objects where an explicit undefined should not overwrite a default.
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    // Type-only imports must say so. This keeps the emitted JS predictable —
+    // no import elision surprises — and is a precondition for any tool that
+    // transpiles file-by-file (esbuild, swc, Node's own type stripping).
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    // Ban the TypeScript syntax that cannot be erased to valid JS (enum,
+    // namespace, parameter properties). Keeps the door open to running these
+    // files under `node --experimental-strip-types` and to swapping tsc for a
+    // faster transpiler later without a rewrite.
+    "erasableSyntaxOnly": true,
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+
+    // Consumers of a package read its .d.ts, so every package emits one.
+    // declarationMap sends go-to-definition to the .ts source, not the build.
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // Type-checking node_modules finds bugs in other people's code that we
+    // cannot fix, at a real cost to every build. Ours are checked either way.
+    "skipLibCheck": true
+  }
+}

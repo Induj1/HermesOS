@@ -1,0 +1,4 @@
+# Format and lint only what is staged. Deliberately fast: type-checking and the
+# test suite belong to `just check` and to CI, not to every commit. A hook that
+# takes a minute is a hook people disable with --no-verify.
+pnpm exec lint-staged

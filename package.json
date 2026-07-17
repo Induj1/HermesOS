@@ -1,0 +1,37 @@
+{
+  "name": "hermesos",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HermesOS — a personal operating system for agents.",
+  "license": "SEE LICENSE IN LICENSE",
+  "packageManager": "pnpm@11.13.1",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9.5"
+  },
+  "scripts": {
+    "dev": "pnpm --recursive --parallel --if-present run dev",
+    "build": "pnpm --recursive --if-present run build",
+    "typecheck": "pnpm --recursive --if-present run typecheck",
+    "test": "pnpm --recursive --if-present run test",
+    "test:watch": "pnpm --recursive --parallel --if-present run test:watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "clean": "pnpm --recursive --if-present run clean",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.19.1",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
+    "prettier": "^3.9.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.64.0"
+  }
+}

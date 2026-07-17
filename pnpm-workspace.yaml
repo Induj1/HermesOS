@@ -1,0 +1,20 @@
+# Workspace layout. Every directory matched here is a pnpm package and must
+# contain a package.json. Nested globs are deliberate: `apps/*` matches
+# `apps/api` but not `apps/api/src`, so a stray package.json deeper in a tree
+# is not silently picked up as a workspace member.
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'services/*'
+
+# Single source of truth for versions shared by every package. A package depends
+# on "typescript": "catalog:" and pnpm substitutes the version below at install
+# time, so eight packages cannot drift onto eight TypeScript versions — and a
+# bump is one edit here rather than one per package.
+#
+# TypeScript is pinned to 5.x deliberately. 7.x is released, but the current
+# typescript-eslint (8.x) declares `typescript: ">=4.8.4 <6.1.0"`, so moving off
+# 5.x today would break type-aware linting.
+catalog:
+  '@types/node': ^22.19.1
+  typescript: ^5.9.3

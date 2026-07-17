@@ -1,0 +1,15 @@
+{
+  // Root config. It deliberately compiles nothing: every package owns its own
+  // tsconfig.json, and `pnpm run typecheck` fans out to them in dependency
+  // order. This file exists so that editors and ESLint's projectService have a
+  // config to fall back on for loose files at the repo root (eslint.config.js,
+  // and scripts that live outside any package).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [],
+  "exclude": ["**/node_modules", "**/dist"]
+}

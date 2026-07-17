@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to a PR makes the in-flight run obsolete. Cancel it rather than
+# paying for a result nobody will read. Never cancel on main: those runs gate
+# the release history.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # The pre-commit hook is meaningless on a CI checkout, and `pnpm install`
+  # would otherwise run husky via the root `prepare` script.
+  HUSKY: 0
+
+jobs:
+  # lint and typecheck are separate jobs, not steps in one: they are
+  # independent, so they run in parallel, and a failure names which one broke
+  # without hiding the other's result behind an early exit.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Must precede setup-node: setup-node's `cache: pnpm` needs the pnpm
+      # binary to resolve the store path.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm run lint --max-warnings=0
+
+      - name: Prettier
+        run: pnpm run format:check
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: tsc
+        run: pnpm run typecheck

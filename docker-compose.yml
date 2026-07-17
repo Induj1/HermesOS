@@ -1,0 +1,165 @@
+# HermesOS — optional containerized infrastructure.
+#
+# The default stack is intentionally EMPTY. Local development runs against
+# native Homebrew services (PostgreSQL, Redis, Ollama), which `just dev`
+# checks for. `docker compose up` with no profile starts nothing, by design.
+#
+# Everything below lives in the `containerized` profile and is opt-in:
+#
+#   just docker-up containerized   # Postgres + Redis + Ollama in Docker
+#   just docker-up gpu             # NVIDIA-backed Ollama only
+#
+# These definitions are kept — not deleted — because they are the reproducible
+# target for Linux hosts, for CI, and for the production upgrade path, where an
+# image you can pin beats whatever a developer's package manager installed.
+#
+# PORT CONFLICT: the containerized services bind the same ports as the Homebrew
+# ones (5432 / 6379 / 11434). Stop the brew service first —
+# `brew services stop postgresql@17` — or override POSTGRES_PORT / REDIS_PORT /
+# OLLAMA_PORT in .env. Running both at once will fail to bind.
+#
+# Ports bind to 127.0.0.1 by default. Set HOST_BIND=0.0.0.0 only when you
+# intentionally want these reachable from other machines.
+
+name: hermes
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  networks: [hermes]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+# Shared by the CPU and GPU Ollama services. This is a merge-key anchor rather
+# than `extends:` on purpose — `extends` UNIONS the `profiles` list instead of
+# overriding it, which would put ollama-gpu in `containerized` as well and start
+# both containers on the same port and volume.
+x-ollama-common: &ollama-common
+  image: ollama/ollama:${OLLAMA_VERSION:-latest}
+  environment:
+    OLLAMA_HOST: 0.0.0.0:11434
+    OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+    OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-1}
+    OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-1}
+  ports:
+    - "${HOST_BIND:-127.0.0.1}:${OLLAMA_PORT:-11434}:11434"
+  volumes:
+    # Models are large and slow to re-pull. Keep them out of the container layer.
+    - ollama-models:/root/.ollama
+  healthcheck:
+    test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+    interval: 10s
+    timeout: 10s
+    retries: 12
+    start_period: 30s
+  stop_grace_period: 60s
+
+services:
+  postgres:
+    <<: *service-defaults
+    profiles: [containerized]
+    # Swap for `pgvector/pgvector:pg17` if you need vector columns for embeddings.
+    image: postgres:${POSTGRES_VERSION:-17-alpine}
+    container_name: hermes-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      # Refuse trust auth even on the local network.
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - "${HOST_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Runs once, only while postgres-data is empty. `just docker-reset` re-triggers it.
+      # The native equivalent is `just db-init`, which applies the same directory.
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -q"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    stop_grace_period: 30s
+    shm_size: 256mb
+
+  redis:
+    <<: *service-defaults
+    profiles: [containerized]
+    image: redis:${REDIS_VERSION:-7.4-alpine}
+    container_name: hermes-redis
+    environment:
+      # Read implicitly by redis-cli, so the password never appears in `ps`.
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    # REDIS_PASSWORD is empty by default because the native Homebrew Redis runs
+    # without one. This profile still demands a real password — shipping an
+    # unauthenticated Redis is not an option — but the check lives here, in the
+    # container's startup, rather than in a `${REDIS_PASSWORD:?...}`
+    # interpolation. Compose interpolates the entire file regardless of which
+    # profile is active, so `:?` would break `docker compose ps/down/logs` for
+    # everyone doing native development, including stopping a stack they had
+    # already started. This fails just as loudly, only later and only for Redis.
+    #
+    # appendonly keeps queue/session state across restarts. Drop it and switch
+    # maxmemory-policy to allkeys-lru if you treat Redis as a pure cache.
+    command:
+      - sh
+      - -c
+      - |
+        if [ -z "$$REDIS_PASSWORD" ]; then
+          echo "REDIS_PASSWORD is empty — refusing to start an unauthenticated Redis." >&2
+          echo "Set it in .env and add it to REDIS_URL: redis://default:<password>@127.0.0.1:6379" >&2
+          exit 1
+        fi
+        exec redis-server \
+          --requirepass "$$REDIS_PASSWORD" \
+          --appendonly yes \
+          --appendfsync everysec \
+          --maxmemory "${REDIS_MAXMEMORY:-512mb}" \
+          --maxmemory-policy "${REDIS_MAXMEMORY_POLICY:-noeviction}"
+    ports:
+      - "${HOST_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    stop_grace_period: 30s
+
+  ollama:
+    <<: [*service-defaults, *ollama-common]
+    profiles: [containerized]
+    container_name: hermes-ollama
+
+  # Same Ollama, with NVIDIA GPUs attached. Requires the NVIDIA Container Toolkit.
+  #   just docker-up gpu
+  # Deliberately NOT in the `containerized` profile: a service starts if ANY of
+  # its profiles is active, so listing both would start ollama and ollama-gpu
+  # together — and they share a port and a volume.
+  ollama-gpu:
+    <<: [*service-defaults, *ollama-common]
+    profiles: [gpu]
+    container_name: hermes-ollama-gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${OLLAMA_GPU_COUNT:-all}
+              capabilities: [gpu]
+
+volumes:
+  postgres-data:
+  redis-data:
+  ollama-models:
+
+networks:
+  hermes:
+    driver: bridge
