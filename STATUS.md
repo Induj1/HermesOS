@@ -5,9 +5,9 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **15 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
+- **16 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
   coverage.
-- **1905 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **1949 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
 - **Nothing is blocked.** The runtime-/credential-gated items so far — GitHub
   Integration (#12), Browser Automation (#13), and the Embedding Service (#14) —
   are all fully implemented and verified against high-fidelity fakes; only live
@@ -32,6 +32,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | GitHub           | `@hermes/tools-github`  | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.        |
 | Browser          | `@hermes/tools-browser` | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms. |
 | Embedding        | `@hermes/embedding`     | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.  |
+| Model Router     | `@hermes/model-router`  | 44    | Capability selection + retryable-fallback across providers; scriptable fake. |
 
 ## Simulated / awaiting live verification
 
