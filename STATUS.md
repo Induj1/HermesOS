@@ -5,28 +5,30 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **12 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
+- **13 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
   coverage.
-- **1600 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
-- **Nothing is blocked yet.** GitHub Integration (#12) is next and is the first
-  credential-gated item; its client and contract tests will ship against a fake
-  GitHub server, with only the live round-trip left to confirm.
+- **1698 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **Nothing is blocked.** GitHub Integration (#12), the first credential-gated
+  item, is fully implemented and verified against a fake GitHub server; only a
+  live round-trip needs a token, and that is documented rather than blocking.
+  Work continues on Browser Automation (#13).
 
 ## Complete
 
-| Subsystem        | Package               | Tests | Notes                                                             |
-| ---------------- | --------------------- | ----- | ----------------------------------------------------------------- |
-| Kernel           | `@hermes/kernel`      | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.   |
-| Memory           | `@hermes/memory`      | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.     |
-| Planner          | `@hermes/planner`     | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner. |
-| Execution Engine | `@hermes/execution`   | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.         |
-| Agent Framework  | `@hermes/agent`       | 172   | Decide-never-execute; reasoners; sessions; delegation.            |
-| Model Contracts  | `@hermes/model`       | 42    | Provider interfaces; zero dependencies.                           |
-| Tool Framework   | `@hermes/tools`       | 175   | Self-describing tools; schemas; permissions; discovery.           |
-| Filesystem Tools | `@hermes/tools-fs`    | 104   | Rooted, cancellable; port + Node + memory implementations.        |
-| Shell Tools      | `@hermes/tools-shell` | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.    |
-| HTTP Tools       | `@hermes/tools-http`  | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.     |
-| Git Tools        | `@hermes/tools-git`   | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.  |
+| Subsystem        | Package                | Tests | Notes                                                                 |
+| ---------------- | ---------------------- | ----- | --------------------------------------------------------------------- |
+| Kernel           | `@hermes/kernel`       | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.       |
+| Memory           | `@hermes/memory`       | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.         |
+| Planner          | `@hermes/planner`      | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.     |
+| Execution Engine | `@hermes/execution`    | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.             |
+| Agent Framework  | `@hermes/agent`        | 172   | Decide-never-execute; reasoners; sessions; delegation.                |
+| Model Contracts  | `@hermes/model`        | 42    | Provider interfaces; zero dependencies.                               |
+| Tool Framework   | `@hermes/tools`        | 175   | Self-describing tools; schemas; permissions; discovery.               |
+| Filesystem Tools | `@hermes/tools-fs`     | 104   | Rooted, cancellable; port + Node + memory implementations.            |
+| Shell Tools      | `@hermes/tools-shell`  | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.        |
+| HTTP Tools       | `@hermes/tools-http`   | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.         |
+| Git Tools        | `@hermes/tools-git`    | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.      |
+| GitHub           | `@hermes/tools-github` | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server. |
 
 ## Simulated / awaiting live verification
 
@@ -39,9 +41,22 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   live:** point `push`/`pull` at a real credentialed remote and assert the
   transfer. See RFC-0010 §10.
 
-The remaining rows fill in as credential-gated subsystems are built: each lists
-what is implemented, what is exercised against a fake, the exact credential
-required, and what remains to confirm live.
+- **GitHub Integration** (`@hermes/tools-github`) — the REST and GraphQL
+  clients, the auth abstraction (PAT, unauthenticated, and the GitHub App JWT →
+  installation-token flow), pagination, retries, rate-limit handling, webhook
+  signature verification, and the repository/issue/PR/workflow/release facade
+  are **all implemented and verified against `FakeGitHubServer`** (98 tests,
+  contract tests included). What needs a credential to confirm live: (1) a real
+  REST/GraphQL round-trip against `api.github.com` with a **personal access
+  token**; (2) the **GitHub App** flow end to end — a real App ID and RSA
+  private key signing a JWT GitHub accepts, exchanged for an installation token;
+  (3) a real signed **webhook** delivery from GitHub. **To confirm live:**
+  supply a `FetchHttpClient` and a token (and, for the App and webhook, an App
+  key and a configured webhook secret). None are code gaps — see RFC-0011 §9.
+
+The remaining rows fill in as further credential-gated subsystems are built:
+each lists what is implemented, what is exercised against a fake, the exact
+credential required, and what remains to confirm live.
 
 ## Known limitations carried forward
 

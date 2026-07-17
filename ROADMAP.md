@@ -28,8 +28,8 @@ live
 | 9   | Shell Tools        | `@hermes/tools-shell`   | RFC-0008 | ✅     |
 | 10  | HTTP Tools         | `@hermes/tools-http`    | RFC-0009 | ✅     |
 | 11  | Git Tools          | `@hermes/tools-git`     | RFC-0010 | ✅     |
-| 12  | GitHub Integration | `@hermes/tools-github`  | —        | 🔜 🔑  |
-| 13  | Browser Automation | `@hermes/tools-browser` | —        | ⬜ 🔑  |
+| 12  | GitHub Integration | `@hermes/tools-github`  | RFC-0011 | ✅ 🔑  |
+| 13  | Browser Automation | `@hermes/tools-browser` | —        | 🔜 🔑  |
 
 ## Models
 
