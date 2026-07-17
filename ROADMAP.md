@@ -48,13 +48,13 @@ tested against a fake before a key exists — only _live_ verification needs one
 
 ## Runtime & interfaces
 
-| #   | Subsystem            | Status |
-| --- | -------------------- | ------ |
-| 21  | Background Scheduler | ⬜     |
-| 22  | Worker Runtime       | ⬜     |
-| 23  | Telegram Interface   | ⬜ 🔑  |
-| 24  | REST API             | ⬜     |
-| 25  | CLI                  | ⬜     |
+| #   | Subsystem            | Status        |
+| --- | -------------------- | ------------- |
+| 21  | Background Scheduler | ✅ (RFC-0020) |
+| 22  | Worker Runtime       | ⬜            |
+| 23  | Telegram Interface   | ⬜ 🔑         |
+| 24  | REST API             | ⬜            |
+| 25  | CLI                  | ⬜            |
 
 ## Platform
 
