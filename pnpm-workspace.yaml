@@ -25,3 +25,7 @@ catalog:
   '@types/node': ^22.19.1
   typescript: ^5.9.3
   vitest: ^3.2.4
+  # Must track vitest's major exactly — the coverage provider reaches into
+  # vitest internals, and a 4.x provider against a 3.x runner fails at startup
+  # rather than at a version check. Bump the two together or not at all.
+  '@vitest/coverage-v8': ^3.2.4
