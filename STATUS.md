@@ -5,16 +5,24 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **24 subsystems complete** (incl. shared `provider-http`, `worker`, `rest`
-  layers), each with an RFC, a README, and enforced ≥95% test coverage.
-- **2208 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
-- **Nothing is blocked.** The credential-/runtime-gated items so far — GitHub
-  (#12), Browser (#13), Embedding (#14), and the OpenAI provider (#18) — are all
-  fully implemented and verified against high-fidelity fakes; only live
-  verification (a token, a real browser, a real API key) remains, documented
-  rather than blocking. Model Router (#15) and OpenAI provider (#18) are done;
-  the Ollama provider (#16) is served by pointing OpenAI-compat at a local
-  server. Continuing through the roadmap in dependency order.
+- **25 subsystems complete** (incl. shared `provider-http`, `worker`, `rest`,
+  `metrics`), each with an RFC, a README, and enforced ≥95% test coverage.
+- **2212 tests** pass repo-wide (23 packages + 4 services). Lint, typecheck,
+  build, and format are clean.
+- **The model tier is complete** (#14–20): embedding platform, router, and the
+  OpenAI/Ollama, Anthropic, and Gemini providers — all verified against
+  high-fidelity fakes, with only live API calls left. **The runtime tier is
+  underway**: scheduler (#21), worker (#22), and the REST layer (#24) are done;
+  metrics (#33) lands the first observability piece.
+- **Remaining:** CLI (#25), Telegram (#23, gated), auth/authz (#26–27), plugin
+  SDK/loader (#28–29), config wiring/secrets (#30–31), and the rest of
+  observability — tracing, health, the aggregate view (#32/#34/#35). None are
+  blocked; each is buildable and testable against fakes.
+- **Tracked consolidation:** the cancellable-`sleep` helper is duplicated in
+  `@hermes/embedding` and `@hermes/tools-github`; the worker now uses the
+  kernel's `Clock` instead. Refactoring the other two would change their public
+  `sleep` option, so it is deferred as a deliberate, low-risk cleanup rather
+  than done at session end.
 
 ## Complete
 
