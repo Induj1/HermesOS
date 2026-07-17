@@ -38,8 +38,8 @@ tested against a fake before a key exists — only _live_ verification needs one
 
 | #   | Subsystem         | Package                      | Status               |
 | --- | ----------------- | ---------------------------- | -------------------- |
-| 14  | Embedding Service | `@hermes/embedding`          | ⬜                   |
-| 15  | Model Router      | `@hermes/model-router`       | ⬜                   |
+| 14  | Embedding Service | `@hermes/embedding`          | ✅ (RFC-0013)        |
+| 15  | Model Router      | `@hermes/model-router`       | 🔜                   |
 | 16  | Ollama Provider   | `@hermes/provider-ollama`    | ⬜ 🔑 (local server) |
 | 17  | Claude Provider   | `@hermes/provider-anthropic` | ⬜ 🔑                |
 | 18  | OpenAI Provider   | `@hermes/provider-openai`    | ⬜ 🔑                |

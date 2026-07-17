@@ -5,14 +5,14 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **14 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
+- **15 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
   coverage.
-- **1797 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
-- **Nothing is blocked.** The two runtime-/credential-gated items so far —
-  GitHub Integration (#12) and Browser Automation (#13) — are both fully
-  implemented and verified against high-fidelity fakes; only live verification
-  (a token, a real browser) remains, and that is documented rather than
-  blocking.
+- **1905 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **Nothing is blocked.** The runtime-/credential-gated items so far — GitHub
+  Integration (#12), Browser Automation (#13), and the Embedding Service (#14) —
+  are all fully implemented and verified against high-fidelity fakes; only live
+  verification (a token, a real browser, a real embedding provider) remains, and
+  that is documented rather than blocking. Next is the Model Router (#15).
 
 ## Complete
 
@@ -31,6 +31,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Git Tools        | `@hermes/tools-git`     | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.             |
 | GitHub           | `@hermes/tools-github`  | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.        |
 | Browser          | `@hermes/tools-browser` | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms. |
+| Embedding        | `@hermes/embedding`     | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.  |
 
 ## Simulated / awaiting live verification
 
@@ -68,6 +69,19 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   the tool suite against it. Not a code gap in the port or tools — see RFC-0012
   §8.
 
+- **Embedding Service** (`@hermes/embedding`) — the whole platform (batching,
+  bounded concurrency, retries with backoff, deterministic ordering,
+  cancellation and timeout, normalization, usage/cost, capability negotiation)
+  is **implemented and verified** against `FakeEmbeddingProvider` (108 tests).
+  The `HttpEmbeddingProvider` base is verified against a fake HTTP client with
+  an OpenAI-shaped subclass. What needs a **real embedding provider** to
+  confirm: concrete providers (#16–18) implementing
+  `buildRequest`/`parseResponse` against the real wire format, with live auth,
+  rate-limit headers, and error bodies — and the full chain (provider → service
+  → `toModelEmbedding` → `MemoryService`) storing real vectors. **To confirm
+  live:** implement a provider and supply a key or a local server. Not a
+  platform gap — see RFC-0013 §12.
+
 The remaining rows fill in as further credential-gated subsystems are built:
 each lists what is implemented, what is exercised against a fake, the exact
 credential required, and what remains to confirm live.
@@ -89,6 +103,9 @@ These are documented in the relevant RFCs and are deliberate, not defects:
   `@hermes/tools-git` (RFC-0010 §7) — a deliberate choice over coupling git to
   the filesystem tools package; it graduates to a shared utility at the third
   consumer (rule of three).
+- **The embedding platform does not tokenize** (RFC-0013 §13) — `maxInputTokens`
+  is advisory; it does not pre-split an over-long text, and normalization is L2
+  only. A provider surfaces an over-length input as `INVALID_REQUEST`.
 - **The browser DOM engine is a subset** (RFC-0012 §9) — no HTML5 implicit
   closing, a limited CSS grammar, and text nodes fold into their parent; the
   fake runs no JavaScript (behaviours use a `data-fk-*` protocol). A real
