@@ -5,9 +5,9 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **17 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
+- **18 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
   coverage.
-- **1994 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **2029 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
 - **Nothing is blocked.** The credential-/runtime-gated items so far — GitHub
   (#12), Browser (#13), Embedding (#14), and the OpenAI provider (#18) — are all
   fully implemented and verified against high-fidelity fakes; only live
@@ -95,6 +95,15 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   endpoint): confirming the request shape and error bodies match live OpenAI,
   and a real chat/embedding round-trip. Streaming is intentionally unimplemented
   until the transport supports it. Not a code gap — see RFC-0015 §8.
+
+- **Anthropic Provider** (`@hermes/provider-anthropic`) — chat/tool-calling over
+  the Messages API is **implemented and verified** against a fake HTTP client
+  (35 tests): the system-hoist + content-block + role-coalescing message bridge,
+  the full request shaping and `tool_choice` mapping, response parsing, and the
+  status/transport error classification (incl. `529` overloaded → retryable).
+  What needs a live **`ANTHROPIC_API_KEY`**: confirming the wire shape and error
+  bodies match live Anthropic and a real (multi-tool) round-trip. No embedding
+  API; streaming unimplemented until the transport supports it. See RFC-0016 §5.
 
 The remaining rows fill in as further credential-gated subsystems are built:
 each lists what is implemented, what is exercised against a fake, the exact
