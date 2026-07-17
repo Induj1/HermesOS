@@ -5,25 +5,26 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **8 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
+- **10 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
   coverage.
-- **1356 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **1402 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
 - **Nothing is blocked yet.** The first credential-gated item (GitHub, #12) is
-  four subsystems away, and even it will ship its client and tests against a
-  fake before stopping.
+  two subsystems away, and even it will ship its client and tests against a fake
+  before stopping.
 
 ## Complete
 
-| Subsystem        | Package             | Tests | Notes                                                             |
-| ---------------- | ------------------- | ----- | ----------------------------------------------------------------- |
-| Kernel           | `@hermes/kernel`    | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.   |
-| Memory           | `@hermes/memory`    | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.     |
-| Planner          | `@hermes/planner`   | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner. |
-| Execution Engine | `@hermes/execution` | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.         |
-| Agent Framework  | `@hermes/agent`     | 172   | Decide-never-execute; reasoners; sessions; delegation.            |
-| Model Contracts  | `@hermes/model`     | 42    | Provider interfaces; zero dependencies.                           |
-| Tool Framework   | `@hermes/tools`     | 175   | Self-describing tools; schemas; permissions; discovery.           |
-| Filesystem Tools | `@hermes/tools-fs`  | 104   | Rooted, cancellable; port + Node + memory implementations.        |
+| Subsystem        | Package               | Tests | Notes                                                             |
+| ---------------- | --------------------- | ----- | ----------------------------------------------------------------- |
+| Kernel           | `@hermes/kernel`      | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.   |
+| Memory           | `@hermes/memory`      | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.     |
+| Planner          | `@hermes/planner`     | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner. |
+| Execution Engine | `@hermes/execution`   | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.         |
+| Agent Framework  | `@hermes/agent`       | 172   | Decide-never-execute; reasoners; sessions; delegation.            |
+| Model Contracts  | `@hermes/model`       | 42    | Provider interfaces; zero dependencies.                           |
+| Tool Framework   | `@hermes/tools`       | 175   | Self-describing tools; schemas; permissions; discovery.           |
+| Filesystem Tools | `@hermes/tools-fs`    | 104   | Rooted, cancellable; port + Node + memory implementations.        |
+| Shell Tools      | `@hermes/tools-shell` | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.    |
 
 ## Simulated / awaiting live verification
 
