@@ -44,6 +44,12 @@ describe('post', () => {
     expect(http.requests[0]?.headers?.['x-api-key']).toBeUndefined();
     expect(http.requests[0]?.headers?.['anthropic-version']).toBe('2099-01-01');
   });
+
+  it('joins a slash-less path to the base URL', async () => {
+    const http = new FakeHttpClient({ handle: () => ({ status: 200, body: '{}' }) });
+    await new AnthropicClient({ http }).post('messages', {});
+    expect(http.requests[0]?.url).toBe('https://api.anthropic.com/v1/messages');
+  });
 });
 
 describe('status mapping', () => {

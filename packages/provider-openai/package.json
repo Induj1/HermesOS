@@ -30,7 +30,8 @@
     "@hermes/kernel": "workspace:*",
     "@hermes/model": "workspace:*",
     "@hermes/tools-http": "workspace:*",
-    "@hermes/embedding": "workspace:*"
+    "@hermes/embedding": "workspace:*",
+    "@hermes/provider-http": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

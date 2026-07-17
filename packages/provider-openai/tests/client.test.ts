@@ -64,6 +64,15 @@ describe('post', () => {
     await client.post('/x', {});
     expect(http.requests[0]?.headers?.['api-key']).toBe('k');
   });
+
+  it('joins a slash-less path to the base URL', async () => {
+    const http = new FakeHttpClient({ handle: () => ({ status: 200, body: '{}' }) });
+    await new OpenAIClient({ http, baseUrl: 'https://api.openai.com/v1' }).post(
+      'models',
+      {},
+    );
+    expect(http.requests[0]?.url).toBe('https://api.openai.com/v1/models');
+  });
 });
 
 describe('status mapping', () => {

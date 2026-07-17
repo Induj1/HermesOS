@@ -173,6 +173,37 @@ describe('OpenAIEmbeddingProvider', () => {
     expect(response.usage).toBeUndefined();
   });
 
+  it('includes only the token fields the response reports', async () => {
+    const body = JSON.stringify({
+      data: [{ embedding: [0.1, 0.2, 0.3], index: 0 }],
+      usage: { prompt_tokens: 5 },
+    });
+    const provider = new OpenAIEmbeddingProvider({
+      http: new FakeHttpClient({
+        handle: () => ({
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+          body,
+        }),
+      }),
+      models: [
+        {
+          name: 'm',
+          provider: 'openai',
+          dimensions: 3,
+          capabilities: {
+            maxBatchSize: 8,
+            configurableDimensions: false,
+            normalizesByDefault: true,
+          },
+        },
+      ],
+    });
+    const response = await new EmbeddingService(provider).embed({ texts: ['x'] });
+    // The provider reports only prompt_tokens; the service falls back to it for total.
+    expect(response.usage).toEqual({ promptTokens: 5, totalTokens: 5 });
+  });
+
   it('reports whether a key was supplied', () => {
     expect(
       new OpenAIEmbeddingProvider({

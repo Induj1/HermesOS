@@ -1,9 +1,9 @@
 {
-  "name": "@hermes/provider-anthropic",
+  "name": "@hermes/provider-http",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Anthropic Claude chat and tool-calling provider for Hermes.",
+  "description": "Shared HTTP plumbing for Hermes model providers: JSON POST, transport and status-to-ModelError mapping.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -27,10 +27,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@hermes/kernel": "workspace:*",
     "@hermes/model": "workspace:*",
-    "@hermes/tools-http": "workspace:*",
-    "@hermes/provider-http": "workspace:*"
+    "@hermes/tools-http": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

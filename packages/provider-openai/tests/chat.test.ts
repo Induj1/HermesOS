@@ -303,6 +303,15 @@ describe('edge mappings', () => {
       completionTokens: 4,
     });
   });
+
+  it('falls back to the configured model name when the response omits it', async () => {
+    const { model } = modelWith(
+      JSON.stringify({
+        choices: [{ message: { content: 'x' }, finish_reason: 'stop' }],
+      }),
+    );
+    expect((await model.chat([user('x')])).model).toBe('gpt-4o-mini');
+  });
 });
 
 // Type guard the fake as an HttpClient at least once, to keep the import honest.
