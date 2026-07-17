@@ -5,30 +5,32 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **13 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
+- **14 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
   coverage.
-- **1698 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
-- **Nothing is blocked.** GitHub Integration (#12), the first credential-gated
-  item, is fully implemented and verified against a fake GitHub server; only a
-  live round-trip needs a token, and that is documented rather than blocking.
-  Work continues on Browser Automation (#13).
+- **1797 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **Nothing is blocked.** The two runtime-/credential-gated items so far —
+  GitHub Integration (#12) and Browser Automation (#13) — are both fully
+  implemented and verified against high-fidelity fakes; only live verification
+  (a token, a real browser) remains, and that is documented rather than
+  blocking.
 
 ## Complete
 
-| Subsystem        | Package                | Tests | Notes                                                                 |
-| ---------------- | ---------------------- | ----- | --------------------------------------------------------------------- |
-| Kernel           | `@hermes/kernel`       | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.       |
-| Memory           | `@hermes/memory`       | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.         |
-| Planner          | `@hermes/planner`      | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.     |
-| Execution Engine | `@hermes/execution`    | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.             |
-| Agent Framework  | `@hermes/agent`        | 172   | Decide-never-execute; reasoners; sessions; delegation.                |
-| Model Contracts  | `@hermes/model`        | 42    | Provider interfaces; zero dependencies.                               |
-| Tool Framework   | `@hermes/tools`        | 175   | Self-describing tools; schemas; permissions; discovery.               |
-| Filesystem Tools | `@hermes/tools-fs`     | 104   | Rooted, cancellable; port + Node + memory implementations.            |
-| Shell Tools      | `@hermes/tools-shell`  | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.        |
-| HTTP Tools       | `@hermes/tools-http`   | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.         |
-| Git Tools        | `@hermes/tools-git`    | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.      |
-| GitHub           | `@hermes/tools-github` | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server. |
+| Subsystem        | Package                 | Tests | Notes                                                                        |
+| ---------------- | ----------------------- | ----- | ---------------------------------------------------------------------------- |
+| Kernel           | `@hermes/kernel`        | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.              |
+| Memory           | `@hermes/memory`        | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.                |
+| Planner          | `@hermes/planner`       | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.            |
+| Execution Engine | `@hermes/execution`     | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.                    |
+| Agent Framework  | `@hermes/agent`         | 172   | Decide-never-execute; reasoners; sessions; delegation.                       |
+| Model Contracts  | `@hermes/model`         | 42    | Provider interfaces; zero dependencies.                                      |
+| Tool Framework   | `@hermes/tools`         | 175   | Self-describing tools; schemas; permissions; discovery.                      |
+| Filesystem Tools | `@hermes/tools-fs`      | 104   | Rooted, cancellable; port + Node + memory implementations.                   |
+| Shell Tools      | `@hermes/tools-shell`   | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.               |
+| HTTP Tools       | `@hermes/tools-http`    | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.                |
+| Git Tools        | `@hermes/tools-git`     | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.             |
+| GitHub           | `@hermes/tools-github`  | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.        |
+| Browser          | `@hermes/tools-browser` | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms. |
 
 ## Simulated / awaiting live verification
 
@@ -54,6 +56,18 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   supply a `FetchHttpClient` and a token (and, for the App and webhook, an App
   key and a configured webhook secret). None are code gaps — see RFC-0011 §9.
 
+- **Browser Automation** (`@hermes/tools-browser`) — the Playwright-shaped port,
+  the session, all the tools, and a high-fidelity `FakeBrowser` are
+  **implemented and verified** (99 tests). The fake fetches page content through
+  the shared HTTP layer, so navigation, redirects, SSRF policy, and network
+  failures are genuinely exercised. What needs a **real browser runtime** to
+  confirm: a `PlaywrightBrowser` backend implementing the same port over
+  Chromium, plus the JavaScript-driven behaviour the fake approximates with its
+  `data-fk-*` protocol (real CSS visibility, live DOM mutation, real
+  dialogs/downloads). **To confirm live:** implement `PlaywrightBrowser` and run
+  the tool suite against it. Not a code gap in the port or tools — see RFC-0012
+  §8.
+
 The remaining rows fill in as further credential-gated subsystems are built:
 each lists what is implemented, what is exercised against a fake, the exact
 credential required, and what remains to confirm live.
@@ -75,6 +89,10 @@ These are documented in the relevant RFCs and are deliberate, not defects:
   `@hermes/tools-git` (RFC-0010 §7) — a deliberate choice over coupling git to
   the filesystem tools package; it graduates to a shared utility at the third
   consumer (rule of three).
+- **The browser DOM engine is a subset** (RFC-0012 §9) — no HTML5 implicit
+  closing, a limited CSS grammar, and text nodes fold into their parent; the
+  fake runs no JavaScript (behaviours use a `data-fk-*` protocol). A real
+  Playwright backend removes these limits.
 - **Git failure classification is best-effort** (RFC-0010 §6) — it keys on git's
   human-facing message strings; the exit code and raw output are always carried
   so a caller need not trust the derived code.
