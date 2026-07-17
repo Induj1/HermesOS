@@ -7,6 +7,12 @@ packages:
   - 'packages/*'
   - 'services/*'
 
+# pnpm blocks dependency install scripts by default. esbuild is the only one we
+# unblock: Vitest transpiles through it, and its install script is what links the
+# platform binary — without it, `pnpm test` cannot start.
+allowBuilds:
+  esbuild: true
+
 # Single source of truth for versions shared by every package. A package depends
 # on "typescript": "catalog:" and pnpm substitutes the version below at install
 # time, so eight packages cannot drift onto eight TypeScript versions — and a
@@ -18,3 +24,4 @@ packages:
 catalog:
   '@types/node': ^22.19.1
   typescript: ^5.9.3
+  vitest: ^3.2.4
