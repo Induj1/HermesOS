@@ -43,7 +43,7 @@ tested against a fake before a key exists — only _live_ verification needs one
 | 16  | Ollama Provider   | `@hermes/provider-ollama`    | 🔜 🔑 (local server) |
 | 17  | Claude Provider   | `@hermes/provider-anthropic` | ✅ 🔑 (RFC-0016)     |
 | 18  | OpenAI Provider   | `@hermes/provider-openai`    | ✅ 🔑 (RFC-0015)     |
-| 19  | Gemini Provider   | `@hermes/provider-google`    | ⬜ 🔑                |
+| 19  | Gemini Provider   | `@hermes/provider-google`    | ✅ 🔑 (RFC-0019)     |
 | 20  | Context Builder   | `@hermes/context`            | ✅ (RFC-0017)        |
 
 ## Runtime & interfaces

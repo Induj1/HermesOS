@@ -5,9 +5,9 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **20 subsystems complete** (incl. the shared `provider-http` base), each with
+- **21 subsystems complete** (incl. the shared `provider-http` base), each with
   an RFC, a README, and enforced ≥95% test coverage.
-- **2074 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **2098 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
 - **Nothing is blocked.** The credential-/runtime-gated items so far — GitHub
   (#12), Browser (#13), Embedding (#14), and the OpenAI provider (#18) — are all
   fully implemented and verified against high-fidelity fakes; only live
@@ -104,6 +104,15 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   What needs a live **`ANTHROPIC_API_KEY`**: confirming the wire shape and error
   bodies match live Anthropic and a real (multi-tool) round-trip. No embedding
   API; streaming unimplemented until the transport supports it. See RFC-0016 §5.
+
+- **Gemini Provider** (`@hermes/provider-google`) — chat/tool-calling over the
+  `generateContent` API is **implemented and verified** against a fake HTTP
+  client (24 tests): the user/model-role + systemInstruction + parts bridge
+  (incl. the tool-result name-vs-id fallback and role coalescing), request
+  shaping and `functionCallingConfig` mapping, response parsing, and the
+  shared-classifier wiring (incl. the context-length override). What needs a
+  live **`GEMINI_API_KEY`**: confirming the wire shape and a real round-trip.
+  Chat/tools only; streaming unimplemented. See RFC-0019 §4.
 
 The remaining rows fill in as further credential-gated subsystems are built:
 each lists what is implemented, what is exercised against a fake, the exact
