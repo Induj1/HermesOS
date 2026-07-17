@@ -1,0 +1,11 @@
+{
+  // The editor/lint/typecheck view: source and tests together, emitting nothing.
+  // The build uses tsconfig.build.json, which narrows rootDir to src so that
+  // dist/ mirrors src/ and the package's "exports" paths stay honest.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
+  "exclude": ["dist", "node_modules"]
+}

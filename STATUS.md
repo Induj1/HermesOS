@@ -5,34 +5,37 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **16 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
+- **17 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
   coverage.
-- **1949 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
-- **Nothing is blocked.** The runtime-/credential-gated items so far — GitHub
-  Integration (#12), Browser Automation (#13), and the Embedding Service (#14) —
-  are all fully implemented and verified against high-fidelity fakes; only live
-  verification (a token, a real browser, a real embedding provider) remains, and
-  that is documented rather than blocking. Next is the Model Router (#15).
+- **1994 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **Nothing is blocked.** The credential-/runtime-gated items so far — GitHub
+  (#12), Browser (#13), Embedding (#14), and the OpenAI provider (#18) — are all
+  fully implemented and verified against high-fidelity fakes; only live
+  verification (a token, a real browser, a real API key) remains, documented
+  rather than blocking. Model Router (#15) and OpenAI provider (#18) are done;
+  the Ollama provider (#16) is served by pointing OpenAI-compat at a local
+  server. Continuing through the roadmap in dependency order.
 
 ## Complete
 
-| Subsystem        | Package                 | Tests | Notes                                                                        |
-| ---------------- | ----------------------- | ----- | ---------------------------------------------------------------------------- |
-| Kernel           | `@hermes/kernel`        | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.              |
-| Memory           | `@hermes/memory`        | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.                |
-| Planner          | `@hermes/planner`       | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.            |
-| Execution Engine | `@hermes/execution`     | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.                    |
-| Agent Framework  | `@hermes/agent`         | 172   | Decide-never-execute; reasoners; sessions; delegation.                       |
-| Model Contracts  | `@hermes/model`         | 42    | Provider interfaces; zero dependencies.                                      |
-| Tool Framework   | `@hermes/tools`         | 175   | Self-describing tools; schemas; permissions; discovery.                      |
-| Filesystem Tools | `@hermes/tools-fs`      | 104   | Rooted, cancellable; port + Node + memory implementations.                   |
-| Shell Tools      | `@hermes/tools-shell`   | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.               |
-| HTTP Tools       | `@hermes/tools-http`    | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.                |
-| Git Tools        | `@hermes/tools-git`     | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.             |
-| GitHub           | `@hermes/tools-github`  | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.        |
-| Browser          | `@hermes/tools-browser` | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms. |
-| Embedding        | `@hermes/embedding`     | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.  |
-| Model Router     | `@hermes/model-router`  | 44    | Capability selection + retryable-fallback across providers; scriptable fake. |
+| Subsystem        | Package                   | Tests | Notes                                                                        |
+| ---------------- | ------------------------- | ----- | ---------------------------------------------------------------------------- |
+| Kernel           | `@hermes/kernel`          | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.              |
+| Memory           | `@hermes/memory`          | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.                |
+| Planner          | `@hermes/planner`         | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.            |
+| Execution Engine | `@hermes/execution`       | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.                    |
+| Agent Framework  | `@hermes/agent`           | 172   | Decide-never-execute; reasoners; sessions; delegation.                       |
+| Model Contracts  | `@hermes/model`           | 42    | Provider interfaces; zero dependencies.                                      |
+| Tool Framework   | `@hermes/tools`           | 175   | Self-describing tools; schemas; permissions; discovery.                      |
+| Filesystem Tools | `@hermes/tools-fs`        | 104   | Rooted, cancellable; port + Node + memory implementations.                   |
+| Shell Tools      | `@hermes/tools-shell`     | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.               |
+| HTTP Tools       | `@hermes/tools-http`      | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.                |
+| Git Tools        | `@hermes/tools-git`       | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.             |
+| GitHub           | `@hermes/tools-github`    | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.        |
+| Browser          | `@hermes/tools-browser`   | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms. |
+| Embedding        | `@hermes/embedding`       | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.  |
+| Model Router     | `@hermes/model-router`    | 44    | Capability selection + retryable-fallback across providers; scriptable fake. |
+| OpenAI Provider  | `@hermes/provider-openai` | 45    | Chat/tools + embeddings over OpenAI wire; Azure/Ollama/vLLM-compatible.      |
 
 ## Simulated / awaiting live verification
 
@@ -82,6 +85,16 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   → `toModelEmbedding` → `MemoryService`) storing real vectors. **To confirm
   live:** implement a provider and supply a key or a local server. Not a
   platform gap — see RFC-0013 §12.
+
+- **OpenAI Provider** (`@hermes/provider-openai`) — chat/tool-calling and
+  embeddings over the OpenAI wire format are **implemented and verified**
+  against a fake HTTP client (45 tests): message/tool/response mapping, the full
+  status/transport error classification, and embeddings end to end through the
+  `EmbeddingService`. The same package targets Azure, Ollama's `/v1`, and vLLM
+  by `baseUrl`. What needs a live **`OPENAI_API_KEY`** (or a compatible
+  endpoint): confirming the request shape and error bodies match live OpenAI,
+  and a real chat/embedding round-trip. Streaming is intentionally unimplemented
+  until the transport supports it. Not a code gap — see RFC-0015 §8.
 
 The remaining rows fill in as further credential-gated subsystems are built:
 each lists what is implemented, what is exercised against a fake, the exact

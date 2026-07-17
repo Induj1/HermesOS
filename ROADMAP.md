@@ -42,7 +42,7 @@ tested against a fake before a key exists — only _live_ verification needs one
 | 15  | Model Router      | `@hermes/model-router`       | ✅ (RFC-0014)        |
 | 16  | Ollama Provider   | `@hermes/provider-ollama`    | 🔜 🔑 (local server) |
 | 17  | Claude Provider   | `@hermes/provider-anthropic` | ⬜ 🔑                |
-| 18  | OpenAI Provider   | `@hermes/provider-openai`    | ⬜ 🔑                |
+| 18  | OpenAI Provider   | `@hermes/provider-openai`    | ✅ 🔑 (RFC-0015)     |
 | 19  | Gemini Provider   | `@hermes/provider-google`    | ⬜ 🔑                |
 | 20  | Context Builder   | `@hermes/context`            | ⬜                   |
 
