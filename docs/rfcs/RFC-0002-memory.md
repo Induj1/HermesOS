@@ -18,7 +18,7 @@ why it is the way it is, that is not a prohibition — it is the argument you no
 have to beat.
 
 Read this alongside the source. Every claim below is implemented and covered by
-tests in `services/memory/tests` (279 of them).
+tests in `services/memory/tests` (304 of them).
 
 ---
 
@@ -455,7 +455,30 @@ one. Rolling a long conversation into a summary memory is the obvious next use
 of the transcript, and it needs a model — so it belongs above this service, or
 in a plugin, calling `remember({ kind: 'summary' })`.
 
-### 9.7 No retrieval evaluation
+### 9.7 An empty `kinds` filter means "unspecified" in the repository
+
+`MemoryRepository.list` reads an empty `kinds` array as "no filter"
+(`kinds && kinds.length > 0`). That is a defensible reading _at the repository
+level_, where an absent filter and an empty one are the same request.
+
+It is **not** defensible one layer up, and the `memory.recall` tool has to
+compensate. That tool drops unknown kinds rather than rejecting them (a model
+asking for a kind that does not exist should get the memories it _can_ have, not
+a validation error it cannot act on). But when _every_ requested kind is
+unknown, the filter empties — and an empty filter passed down would silently
+widen the request from "only vibes" to "every kind there is".
+
+The direction of that failure is what makes it worth recording. A host using
+`kinds` to keep an agent away from a sensitive kind would find one unknown kind
+granting access to all of them: a filter that fails **open**. `recallTool` now
+short-circuits to an empty result instead, which is both the honest reading of
+"the memories it can have" and the direction that fails closed.
+
+The repository is left alone deliberately. Its reading is correct for its own
+layer, and the tool is where the model's input actually arrives — which is where
+the compensation belongs.
+
+### 9.8 No retrieval evaluation
 
 There is no golden set and no measure of whether recall is _good_ — only that it
 works. The weights in §8.2 are therefore chosen by argument, not by evidence. A
@@ -463,7 +486,7 @@ retrieval benchmark is the highest-value thing anyone could add here.
 
 ## 10. Testing strategy
 
-279 tests. `pnpm --filter @hermes/memory test`.
+304 tests. `pnpm --filter @hermes/memory test`.
 
 The strategy follows the architecture, and mirrors the kernel's (RFC-0001 §12):
 

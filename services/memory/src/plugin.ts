@@ -303,6 +303,19 @@ function recallTool(
       },
     },
     execute: async (input) => {
+      // A caller that named kinds and had every one of them dropped as unknown
+      // has asked for something that cannot match. Passing the empty list down
+      // would *widen* the request instead of narrowing it: the repository reads
+      // an empty `kinds` as "unspecified" (`kinds.length > 0`), so the filter
+      // would silently turn into no filter and return every kind there is.
+      //
+      // That is the dangerous direction. A host that uses `kinds` to keep an
+      // agent away from a sensitive kind would find one unknown kind granting
+      // access to all of them. Returning nothing is the honest reading of
+      // "the memories it can have" — for a kind that does not exist, there are
+      // none — and it fails closed.
+      if (input.kinds?.length === 0) return [];
+
       const results = await memory.recall(
         input.subject ?? defaultSubject,
         input.query,
