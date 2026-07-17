@@ -5,11 +5,11 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **10 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
+- **11 subsystems complete**, each with an RFC, a README, and enforced ≥95% test
   coverage.
-- **1402 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **1494 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
 - **Nothing is blocked yet.** The first credential-gated item (GitHub, #12) is
-  two subsystems away, and even it will ship its client and tests against a fake
+  one subsystem away, and even it will ship its client and tests against a fake
   before stopping.
 
 ## Complete
@@ -25,6 +25,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Tool Framework   | `@hermes/tools`       | 175   | Self-describing tools; schemas; permissions; discovery.           |
 | Filesystem Tools | `@hermes/tools-fs`    | 104   | Rooted, cancellable; port + Node + memory implementations.        |
 | Shell Tools      | `@hermes/tools-shell` | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.    |
+| HTTP Tools       | `@hermes/tools-http`  | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.     |
 
 ## Simulated / awaiting live verification
 

@@ -26,8 +26,8 @@ live
 | --- | ------------------ | ----------------------- | -------- | ------ |
 | 8   | Filesystem Tools   | `@hermes/tools-fs`      | RFC-0007 | ✅     |
 | 9   | Shell Tools        | `@hermes/tools-shell`   | RFC-0008 | ✅     |
-| 10  | HTTP Tools         | `@hermes/tools-http`    | —        | 🔜     |
-| 11  | Git Tools          | `@hermes/tools-git`     | —        | ⬜     |
+| 10  | HTTP Tools         | `@hermes/tools-http`    | RFC-0009 | ✅     |
+| 11  | Git Tools          | `@hermes/tools-git`     | —        | 🔜     |
 | 12  | GitHub Integration | `@hermes/tools-github`  | —        | ⬜ 🔑  |
 | 13  | Browser Automation | `@hermes/tools-browser` | —        | ⬜ 🔑  |
 
