@@ -58,18 +58,18 @@ tested against a fake before a key exists — only _live_ verification needs one
 
 ## Platform
 
-| #   | Subsystem      | Status |
-| --- | -------------- | ------ |
-| 26  | Authentication | ⬜     |
-| 27  | Authorization  | ⬜     |
-| 28  | Plugin SDK     | ⬜     |
-| 29  | Plugin Loader  | ⬜     |
-| 30  | Configuration  | ⬜     |
-| 31  | Secrets        | ⬜     |
-| 32  | Observability  | ⬜     |
-| 33  | Metrics        | ⬜     |
-| 34  | Tracing        | ⬜     |
-| 35  | Health Checks  | ⬜     |
+| #   | Subsystem      | Status        |
+| --- | -------------- | ------------- |
+| 26  | Authentication | ⬜            |
+| 27  | Authorization  | ⬜            |
+| 28  | Plugin SDK     | ⬜            |
+| 29  | Plugin Loader  | ⬜            |
+| 30  | Configuration  | ⬜            |
+| 31  | Secrets        | ⬜            |
+| 32  | Observability  | ⬜            |
+| 33  | Metrics        | ✅ (RFC-0023) |
+| 34  | Tracing        | ⬜            |
+| 35  | Health Checks  | ⬜            |
 
 ## Production
 

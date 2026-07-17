@@ -7,7 +7,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 - **24 subsystems complete** (incl. shared `provider-http`, `worker`, `rest`
   layers), each with an RFC, a README, and enforced ≥95% test coverage.
-- **2189 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
+- **2208 tests** pass repo-wide. Lint, typecheck, build, and format are clean.
 - **Nothing is blocked.** The credential-/runtime-gated items so far — GitHub
   (#12), Browser (#13), Embedding (#14), and the OpenAI provider (#18) — are all
   fully implemented and verified against high-fidelity fakes; only live
