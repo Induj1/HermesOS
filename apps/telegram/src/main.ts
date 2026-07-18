@@ -55,7 +55,11 @@ export async function main(): Promise<void> {
   const http = guarded(new FetchHttpClient(), { policy: { blockPrivate: true } });
   const shell = config.enableShell
     ? allowlisted(
-        new NodeShellExecutor({ cwd: config.workspaceDir }),
+        new NodeShellExecutor({
+          cwd: config.workspaceDir,
+          timeoutMs: config.shellTimeoutMs,
+          maxOutputBytes: config.shellMaxOutputBytes,
+        }),
         config.shellAllowlist,
       )
     : undefined;

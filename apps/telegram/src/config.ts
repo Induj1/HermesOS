@@ -69,11 +69,52 @@ export const telegramSchema = {
   /**
    * Programs the shell tool may run when `enableShell` is set.
    * `SHELL_ALLOWLIST`, comma-separated. Matched on program name only; arguments
-   * are never interpreted. Default is a conservative read-mostly set.
+   * are never interpreted. The default is a developer set (scaffold, install,
+   * build, commit) — deliberately without `rm`/`sudo`. Note that `node`/`npm`
+   * can themselves run arbitrary code, so this is a soft boundary, not a jail.
    */
   shellAllowlist: list()
-    .default(['ls', 'cat', 'echo', 'pwd', 'date', 'head', 'tail', 'wc', 'grep', 'find'])
+    .default([
+      'ls',
+      'cat',
+      'echo',
+      'pwd',
+      'date',
+      'head',
+      'tail',
+      'wc',
+      'grep',
+      'find',
+      'mkdir',
+      'touch',
+      'cp',
+      'which',
+      'sed',
+      'node',
+      'npm',
+      'npx',
+      'pnpm',
+      'yarn',
+      'git',
+      'tsc',
+    ])
     .describe('Comma-separated programs the shell tool may run.'),
+
+  /**
+   * Timeout for a single shell command, in ms. `SHELL_TIMEOUT_MS`. Generous
+   * because an `npm install` or a build easily outlasts a 30s default.
+   */
+  shellTimeoutMs: integer()
+    .default(180_000)
+    .describe('Timeout for one shell command in ms.'),
+
+  /**
+   * Output cap for a single shell command, in bytes. `SHELL_MAX_OUTPUT_BYTES`.
+   * Raised from the 1 MB default so a verbose install log is not truncated.
+   */
+  shellMaxOutputBytes: integer()
+    .default(4_000_000)
+    .describe('Max captured output per shell command, in bytes.'),
 
   /**
    * The most reasoning turns a single message may take. `MAX_TURNS`. Each turn
