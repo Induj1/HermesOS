@@ -1,81 +1,80 @@
 # @hermes/telegram-app
 
-A Telegram bot that turns each message into a **HermesOS task-executing agent**
-run, backed by a **local Ollama** model. Message it from your phone; it reasons,
-calls tools (files, HTTP, optionally shell), and replies.
+A **private, offline, phone-controlled AI assistant** — a Telegram bot backed by
+local Ollama models on your own machine. It builds things, remembers you, reads
+your files, sees images, hears voice notes, and briefs you each morning. No
+cloud, no API keys, no per-token cost.
 
-It is the host that wires four HermesOS subsystems together:
+## Features
 
-- `@hermes/telegram` — the Bot API client and long-poll dispatcher (the phone
-  side).
-- `@hermes/provider-openai` — the model, pointed at Ollama's `/v1` endpoint.
-- `@hermes/agent` — the reasoning loop (`LlmReasoner` → tool requests → answer).
-- `@hermes/tools-*` — the tools the agent runs, over confined ports.
+| Feature                  | What it does                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Task-executing agent** | Writes/reads files, makes HTTP requests, runs allowlisted shell commands (node/npm/git). Scaffolds and builds real projects. |
+| **Team of agents**       | A coordinator routes to a **researcher**, **coder**, or **planner** specialist by intent (`ENABLE_TEAM`).                    |
+| **Memory**               | Remembers your name, preferences, and past messages per chat — a local embedding store, no database.                         |
+| **Chat with your files** | Drop docs in a folder, send `/ingest`, then ask questions grounded in them (RAG).                                            |
+| **Image input**          | Send a photo → a local vision model (llava) describes/analyses it.                                                           |
+| **Voice notes**          | Send a voice note → whisper.cpp transcribes it → runs as a task.                                                             |
+| **Morning briefing**     | Weather + top Hacker News, pushed daily on a cron.                                                                           |
+| **CI watcher**           | DMs you when a watched GitHub repo's CI fails.                                                                               |
 
-## How it fits together
+Everything runs on your machine. Files are confined to a workspace, HTTP is
+SSRF-guarded, and the shell is off unless you opt in.
+
+## Quick start
+
+1. **Bot token:** message [@BotFather](https://t.me/BotFather) → `/newbot`.
+2. **Models:** a capable chat model matters (a 0.5b model can't use tools).
+   ```bash
+   ollama pull qwen2.5-coder:32b   # or qwen2.5:7b on less RAM
+   ollama pull all-minilm          # embeddings (memory/RAG)
+   ollama pull llava:7b            # vision (image input)
+   ```
+3. **For voice** (optional): `brew install whisper-cpp ffmpeg` and download a
+   whisper model, e.g.
+   `curl -L -o ~/.cache/whisper/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin`
+4. **Run** (see `.env.example` for every knob):
+   ```bash
+   TELEGRAM_BOT_TOKEN=<token> \
+   OLLAMA_MODEL=qwen2.5-coder:32b \
+   ENABLE_SHELL=true \
+   VISION_MODEL=llava:7b \
+   WHISPER_MODEL=~/.cache/whisper/ggml-base.en.bin \
+   CI_REPO=<owner/repo> \
+   pnpm --filter @hermes/telegram-app start
+   ```
+5. In Telegram, send `/start`, then talk to it — type, speak, send a photo, or
+   drop files + `/ingest`.
+
+## Commands & interactions
+
+- **Any text** → a task the agent works on.
+- **`/ingest`** → embed the files in `DOCS_DIR` for "chat with my files".
+- **A photo** → described by the vision model (its caption becomes the prompt).
+- **A voice note** → transcribed, then run as a task.
+
+## Architecture
 
 ```
-Telegram message
-  → TelegramBot (long-poll)                 bot.ts / main.ts
-  → AgentRuntime.run(assistant, {input})    agent.ts
-      → LlmReasoner asks Ollama             provider-openai → Ollama
-      → model requests a tool               (ToolsDecision)
-      → toolExecutor runs it                executor.ts  ← the host's side of the port
-      → observation fed back, loop          up to MAX_TURNS
-  → replyText(result) → ctx.reply(...)      agent.ts / bot.ts
+Telegram (text / photo / voice)
+  → bot.ts        route: text→agent, photo→vision, voice→whisper→agent
+  → team.ts       coordinator routes to researcher / coder / planner
+  → agent.ts      LlmReasoner over Ollama, + memory recall
+      → executor.ts   runs the tools the model asks for
+      → tools.ts      files (workspace-rooted) + HTTP (SSRF-guarded) + shell
+  → memory-store.ts   embed + persist + recall (memory & RAG)
+  → briefing.ts + Scheduler   morning briefing + CI watcher
 ```
 
-`@hermes/agent` ships only a kernel-backed executor; a chat bot has no kernel
-`Runtime`, so `executor.ts` is the small `AgentExecutor` that runs the tools
-directly (validating the model's arguments against each tool's schema via
-`callTool`, exactly as the kernel would).
+The pure, testable pieces live in their own modules (61+ unit tests); `main.ts`
+is the impure entrypoint that wires real ports and runs the long-poll loop.
 
-## Run it
+## Safety
 
-1. **Get a bot token.** In Telegram, message
-   [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token.
-2. **Have a model.** Ollama must be running with a chat model pulled. A capable
-   model matters — a 0.5b model connects but cannot use tools reliably:
-   ```bash
-   ollama pull qwen2.5:7b
-   ```
-3. **Configure.** In the repo root `.env` (see `.env.example`):
-   ```bash
-   TELEGRAM_BOT_TOKEN=123456:ABC...
-   OLLAMA_MODEL=qwen2.5:7b
-   # optional: ENABLE_SHELL=true
-   ```
-4. **Start the bot** (long-poll — no public URL or webhook needed):
-   ```bash
-   pnpm --filter @hermes/telegram-app dev      # watch mode
-   # or: pnpm --filter @hermes/telegram-app build && pnpm --filter @hermes/telegram-app start
-   ```
-5. Open your bot in Telegram, send `/start`, then a task: `summarise notes.md`,
-   or `fetch https://example.com and tell me the title`.
-
-## Configuration
-
-Every field reads a SCREAMING_SNAKE env var of its name (see `src/config.ts`):
-
-| Env var              | Default                     | Purpose                                    |
-| -------------------- | --------------------------- | ------------------------------------------ |
-| `TELEGRAM_BOT_TOKEN` | — (required)                | BotFather token.                           |
-| `OLLAMA_BASE_URL`    | `http://localhost:11434/v1` | Ollama's OpenAI-compatible endpoint.       |
-| `OLLAMA_MODEL`       | `qwen2.5:0.5b`              | Chat model tag. Use 7b+ for real tool use. |
-| `WORKSPACE_DIR`      | `./hermes-workspace`        | Directory the file tools are confined to.  |
-| `ENABLE_SHELL`       | `false`                     | Enable the allowlisted shell tool.         |
-| `SHELL_ALLOWLIST`    | `ls,cat,echo,…`             | Programs the shell tool may run.           |
-| `MAX_TURNS`          | `6`                         | Max reasoning turns per message.           |
-| `POLL_INTERVAL_MS`   | `1000`                      | Long-poll interval.                        |
-
-## Safety posture
-
-- **Files** are confined to `WORKSPACE_DIR` via `rooted()` — the agent cannot
-  touch the rest of the disk even if the model asks it to.
-- **HTTP** goes through `guarded({ policy: { blockPrivate: true } })` — loopback
-  and private ranges are blocked (SSRF protection).
-- **Shell** is off unless `ENABLE_SHELL=true`, and then default-deny: only the
-  allowlisted program names run, arguments are passed literally (no shell).
-
-The model itself talks to Ollama through a **bare** client, because Ollama is on
-loopback — which the tool guard (correctly) blocks for the agent's own requests.
+- Files confined to `WORKSPACE_DIR` (path-normalised, escape-refused).
+- HTTP guarded against SSRF (loopback/private blocked).
+- Shell off unless `ENABLE_SHELL=true`, then default-deny allowlist (no
+  rm/sudo).
+- The memory store lives outside the model-writable workspace.
+- **Note:** with the shell on, `node`/`npm` can run arbitrary code — an explicit
+  opt-in for a personal machine.
