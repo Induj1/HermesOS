@@ -82,6 +82,11 @@ tested against a fake before a key exists — only _live_ verification needs one
 | 40  | Performance Optimization | ⬜     |
 | 41  | Production Documentation | ⬜     |
 
+Each Production milestone is defined explicitly — package (most are repo-level
+artifacts, not packages), responsibilities, dependencies, and completion
+criteria — in
+[`docs/architecture/production-tier.md`](docs/architecture/production-tier.md).
+
 ## Credential-gated work
 
 The 🔑 items can be **fully built and tested against fakes** — interfaces,

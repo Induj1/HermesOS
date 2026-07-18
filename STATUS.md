@@ -26,24 +26,48 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## Complete
 
-| Subsystem        | Package                   | Tests | Notes                                                                        |
-| ---------------- | ------------------------- | ----- | ---------------------------------------------------------------------------- |
-| Kernel           | `@hermes/kernel`          | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.              |
-| Memory           | `@hermes/memory`          | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.                |
-| Planner          | `@hermes/planner`         | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.            |
-| Execution Engine | `@hermes/execution`       | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.                    |
-| Agent Framework  | `@hermes/agent`           | 172   | Decide-never-execute; reasoners; sessions; delegation.                       |
-| Model Contracts  | `@hermes/model`           | 42    | Provider interfaces; zero dependencies.                                      |
-| Tool Framework   | `@hermes/tools`           | 175   | Self-describing tools; schemas; permissions; discovery.                      |
-| Filesystem Tools | `@hermes/tools-fs`        | 104   | Rooted, cancellable; port + Node + memory implementations.                   |
-| Shell Tools      | `@hermes/tools-shell`     | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.               |
-| HTTP Tools       | `@hermes/tools-http`      | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.                |
-| Git Tools        | `@hermes/tools-git`       | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.             |
-| GitHub           | `@hermes/tools-github`    | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.        |
-| Browser          | `@hermes/tools-browser`   | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms. |
-| Embedding        | `@hermes/embedding`       | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.  |
-| Model Router     | `@hermes/model-router`    | 44    | Capability selection + retryable-fallback across providers; scriptable fake. |
-| OpenAI Provider  | `@hermes/provider-openai` | 45    | Chat/tools + embeddings over OpenAI wire; Azure/Ollama/vLLM-compatible.      |
+| Subsystem        | Package                      | Tests | Notes                                                                        |
+| ---------------- | ---------------------------- | ----- | ---------------------------------------------------------------------------- |
+| Kernel           | `@hermes/kernel`             | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.              |
+| Memory           | `@hermes/memory`             | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.                |
+| Planner          | `@hermes/planner`            | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.            |
+| Execution Engine | `@hermes/execution`          | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.                    |
+| Agent Framework  | `@hermes/agent`              | 172   | Decide-never-execute; reasoners; sessions; delegation.                       |
+| Model Contracts  | `@hermes/model`              | 42    | Provider interfaces; zero dependencies.                                      |
+| Tool Framework   | `@hermes/tools`              | 175   | Self-describing tools; schemas; permissions; discovery.                      |
+| Filesystem Tools | `@hermes/tools-fs`           | 104   | Rooted, cancellable; port + Node + memory implementations.                   |
+| Shell Tools      | `@hermes/tools-shell`        | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.               |
+| HTTP Tools       | `@hermes/tools-http`         | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.                |
+| Git Tools        | `@hermes/tools-git`          | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.             |
+| GitHub           | `@hermes/tools-github`       | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.        |
+| Browser          | `@hermes/tools-browser`      | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms. |
+| Embedding        | `@hermes/embedding`          | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.  |
+| Model Router     | `@hermes/model-router`       | 44    | Capability selection + retryable-fallback across providers; scriptable fake. |
+| OpenAI Provider  | `@hermes/provider-openai`    | 45    | Chat/tools + embeddings over OpenAI wire; Azure/Ollama/vLLM-compatible.      |
+| Anthropic        | `@hermes/provider-anthropic` | 35    | Messages API chat/tools; system-hoist + block bridge; 529→retryable.         |
+| Gemini           | `@hermes/provider-google`    | 24    | `generateContent` chat/tools; user/model + systemInstruction bridge.         |
+| Context Builder  | `@hermes/context`            | 23    | Goal → packed `ModelMessage[]` within a token budget; deterministic.         |
+| Provider Base    | `@hermes/provider-http`      | 22    | Shared transport + status→`ModelError` classification for every provider.    |
+| Scheduler        | `@hermes/scheduler`          | 31    | Cron/interval/once triggers; pure `nextRun`; coalescing `poll`.              |
+| Worker Runtime   | `@hermes/worker`             | 20    | Queue port + in-memory queue; claim/ack/retry/dead-letter; kernel `Clock`.   |
+| REST Layer       | `@hermes/rest`               | 40    | Plain-data request/response; router; middleware; Node adapter.               |
+| Metrics          | `@hermes/metrics`            | 19    | Counter/gauge/histogram with labels; Prometheus exposition; zero-dep.        |
+
+## Production tier — defined, not yet built
+
+The Production tier (#36–41) is scoped in
+[`docs/architecture/production-tier.md`](docs/architecture/production-tier.md):
+milestone number, package (most are repo-level artifacts, not packages),
+responsibilities, dependencies, and completion criteria for each. In short —
+**#36 Docker** (multi-stage image + Compose stack, config from the environment),
+**#37 CI/CD** (the local gate suite run on every PR; image build on a tag),
+**#38 Security Audit** (document each existing trust boundary → control →
+residual risk, plus `pnpm audit`), **#39 Load Testing** (`@hermes/loadtest`, a
+deterministic in-process harness over the REST app and worker), **#40
+Performance Optimization** (measured, behaviour-preserving changes found via
+#39), and **#41 Production Documentation** (deployment guide, config reference,
+ops runbook, credential list). They depend on the platform tier (#25–35) landing
+first.
 
 ## Simulated / awaiting live verification
 
