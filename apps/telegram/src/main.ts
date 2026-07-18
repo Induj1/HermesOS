@@ -27,6 +27,7 @@ import { telegramSchema } from './config.js';
 import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
 import { DOCS_SUBJECT, ingestDocs } from './rag.js';
+import { buildTeamRuntime } from './team.js';
 import { buildTools } from './tools.js';
 import { lenientWorkspaceFs } from './workspace-fs.js';
 
@@ -99,7 +100,7 @@ export async function main(): Promise<void> {
     clock: systemClock,
   });
 
-  const runtime = buildAgentRuntime({
+  const runtimeDeps = {
     model,
     executor,
     maxTurns: config.maxTurns,
@@ -108,7 +109,10 @@ export async function main(): Promise<void> {
     // Recall the chat's own memories plus any ingested documents.
     memory: memory.asMemoryAdapter([DOCS_SUBJECT]) as unknown as MemoryAdapter,
     recall: config.memoryRecall,
-  });
+  };
+  const runtime = config.enableTeam
+    ? buildTeamRuntime(runtimeDeps)
+    : buildAgentRuntime(runtimeDeps);
 
   // /ingest reads the docs folder, chunks + embeds each file into memory.
   const docsDir = path.resolve(config.docsDir);

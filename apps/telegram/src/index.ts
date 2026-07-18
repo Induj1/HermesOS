@@ -27,6 +27,14 @@ export {
   type CiStatus,
   type WeatherSummary,
 } from './briefing.js';
+export {
+  COORDINATOR,
+  RouterReasoner,
+  buildTeamRuntime,
+  routeTo,
+  type Specialist,
+  type TeamRuntimeDeps,
+} from './team.js';
 export { toolExecutor, type ExecutorDeps } from './executor.js';
 export {
   AGENT_NAME,

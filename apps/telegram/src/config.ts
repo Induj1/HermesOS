@@ -153,6 +153,12 @@ export const telegramSchema = {
     .default(5)
     .describe('Memories recalled per message (0 = off).'),
 
+  /**
+   * Route each request through a team of specialist agents (researcher, coder,
+   * planner) behind a coordinator. `ENABLE_TEAM`. Off falls back to one agent.
+   */
+  enableTeam: boolean().default(true).describe('Use a team of specialist agents.'),
+
   /** Send a scheduled morning briefing. `ENABLE_BRIEFING`. */
   enableBriefing: boolean().default(true).describe('Send a daily morning briefing.'),
 
