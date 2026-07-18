@@ -68,6 +68,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Plugin Loader    | `@hermes/plugin-loader`      | 18    | Enforces API-version compat; validates manifests; adapts to kernel plugins.  |
 | CLI              | `@hermes/cli`                | 22    | Schema-less arg parsing; command dispatch; injected IO; returns exit code.   |
 | Telegram         | `@hermes/telegram`           | 32    | Bot API client; command dispatch; webhook verify; fake server. 🔑 (live).    |
+| Load Testing     | `@hermes/loadtest`           | 14    | Deterministic harness: bounded concurrency, latency percentiles, throughput. |
 
 ## Production tier — defined, not yet built
 
