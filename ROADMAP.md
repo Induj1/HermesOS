@@ -54,7 +54,7 @@ tested against a fake before a key exists — only _live_ verification needs one
 | 22  | Worker Runtime       | ✅ (RFC-0021) |
 | 23  | Telegram Interface   | ⬜ 🔑         |
 | 24  | REST API             | ✅ (RFC-0022) |
-| 25  | CLI                  | ⬜            |
+| 25  | CLI                  | ✅ (RFC-0033) |
 
 ## Platform
 

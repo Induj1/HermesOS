@@ -17,10 +17,12 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 - **The entire Platform tier (#26–35) is complete:** auth (#26), authz (#27),
   plugin SDK (#28), plugin loader (#29), config (#30), secrets (#31),
   observability (#32), metrics (#33), tracing (#34), and health (#35).
-- **Remaining:** CLI (#25) and Telegram (#23, gated) in the interfaces tier,
-  then the Production tier (#36–41, scoped in
-  `docs/architecture/production-tier.md`). Neither is blocked; each is buildable
-  against fakes.
+- **The interfaces tier is complete except the gated Telegram (#23):** REST
+  (#24) and CLI (#25) ship. **Remaining:** Telegram (#23, credential-gated) and
+  the Production tier (#36–41, scoped in
+  `docs/architecture/production-tier.md`). Neither is blocked on design;
+  Telegram is buildable against a fake bot API and needs only a bot token to
+  verify live.
 - **Tracked consolidation:** the cancellable-`sleep` helper is duplicated in
   `@hermes/embedding` and `@hermes/tools-github`; the worker now uses the
   kernel's `Clock` instead. Refactoring the other two would change their public
@@ -64,6 +66,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Authorization    | `@hermes/authz`              | 20    | Wildcard scopes; deny-override, default-deny policy engine over principals.  |
 | Plugin SDK       | `@hermes/plugin-sdk`         | 4     | Versioned manifest + `definePlugin` over the kernel `PluginContext`.         |
 | Plugin Loader    | `@hermes/plugin-loader`      | 18    | Enforces API-version compat; validates manifests; adapts to kernel plugins.  |
+| CLI              | `@hermes/cli`                | 22    | Schema-less arg parsing; command dispatch; injected IO; returns exit code.   |
 
 ## Production tier — defined, not yet built
 
