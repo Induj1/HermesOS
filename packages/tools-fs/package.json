@@ -1,9 +1,10 @@
 {
   "name": "@hermes/tools-fs",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Filesystem tools for Hermes: read, write, list, and search files behind a rooted, cancellable port.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

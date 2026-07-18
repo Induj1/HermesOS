@@ -1,9 +1,10 @@
 {
   "name": "@hermes/worker",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Worker runtime for Hermes: a job queue and a deterministic processing loop with retries and a DLQ.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

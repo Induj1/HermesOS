@@ -1,9 +1,10 @@
 {
   "name": "@hermes/metrics",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Zero-dependency metrics for Hermes: counters, gauges, histograms, and a Prometheus text formatter.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

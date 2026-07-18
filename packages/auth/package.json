@@ -1,9 +1,10 @@
 {
   "name": "@hermes/auth",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Authentication: principals, API-key and bearer credentials, and pluggable authenticators.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

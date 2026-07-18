@@ -1,9 +1,10 @@
 {
   "name": "@hermes/tools-http",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Filesystem tools for Hermes: make HTTP requests with SSRF protection, redirect re-checking, size caps, and timeouts.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -1,9 +1,10 @@
 {
   "name": "@hermes/embedding",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Provider-independent embedding platform for Hermes: batching, retries, concurrency, and a deterministic fake.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

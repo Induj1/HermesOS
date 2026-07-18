@@ -1,9 +1,10 @@
 {
   "name": "@hermes/logger",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Structured, leveled logging with secret-safe JSON records and trace correlation.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

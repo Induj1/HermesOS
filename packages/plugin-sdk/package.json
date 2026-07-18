@@ -1,9 +1,10 @@
 {
   "name": "@hermes/plugin-sdk",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "The versioned authoring contract for third-party Hermes plugins: manifest + definePlugin.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

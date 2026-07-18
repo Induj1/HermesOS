@@ -1,9 +1,10 @@
 {
   "name": "@hermes/tools-github",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "GitHub integration for Hermes: REST + GraphQL clients, auth, webhooks, and a fake server.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

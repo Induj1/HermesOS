@@ -1,9 +1,10 @@
 {
   "name": "@hermes/authz",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Authorization: wildcard scope matching and a deny-override policy engine over principals.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

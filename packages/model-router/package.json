@@ -1,9 +1,10 @@
 {
   "name": "@hermes/model-router",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Capability-based routing and fallback across model providers for Hermes.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

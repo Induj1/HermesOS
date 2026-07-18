@@ -24,4 +24,4 @@ export const apiSchema = {
 export type ApiConfig = Config<typeof apiSchema>;
 
 /** The service version, surfaced at `/` and on the startup log line. */
-export const API_VERSION = '0.0.0';
+export const API_VERSION = '1.0.0';

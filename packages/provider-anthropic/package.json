@@ -1,9 +1,10 @@
 {
   "name": "@hermes/provider-anthropic",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Anthropic Claude chat and tool-calling provider for Hermes.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

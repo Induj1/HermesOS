@@ -1,9 +1,10 @@
 {
   "name": "@hermes/planner",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Planner service: decomposes goals into executable plans.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

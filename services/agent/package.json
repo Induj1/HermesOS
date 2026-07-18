@@ -1,9 +1,10 @@
 {
   "name": "@hermes/agent",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Agent framework: reasoning and decision-making. Decides what should happen; never executes it.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

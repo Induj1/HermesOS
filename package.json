@@ -1,10 +1,10 @@
 {
   "name": "hermesos",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "HermesOS — a personal operating system for agents.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "packageManager": "pnpm@11.13.1",
   "engines": {
     "node": ">=22",

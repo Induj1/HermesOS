@@ -1,9 +1,10 @@
 {
   "name": "@hermes/rest",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "A framework-agnostic HTTP layer for Hermes: router, middleware, and a thin Node adapter.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

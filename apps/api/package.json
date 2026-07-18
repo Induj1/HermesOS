@@ -1,9 +1,10 @@
 {
   "name": "@hermes/api",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "HTTP API service for HermesOS — the composition root wiring config, logging, health, metrics, and REST.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

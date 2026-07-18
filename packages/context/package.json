@@ -1,9 +1,10 @@
 {
   "name": "@hermes/context",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Budget-aware context assembly for Hermes: system, history, and retrieved memory into a model prompt.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

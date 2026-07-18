@@ -1,9 +1,10 @@
 {
   "name": "@hermes/scheduler",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Deterministic background job scheduler for Hermes: cron, interval, and one-shot triggers.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

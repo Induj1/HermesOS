@@ -1,9 +1,10 @@
 {
   "name": "@hermes/tools-browser",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Browser automation for Hermes: a Playwright-shaped port, an HTTP-backed fake browser, and tools.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

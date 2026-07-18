@@ -1,9 +1,10 @@
 {
   "name": "@hermes/plugin-loader",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Validates plugin manifests and API-version compatibility, then adapts them to kernel plugins.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

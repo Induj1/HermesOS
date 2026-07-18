@@ -1,9 +1,10 @@
 {
   "name": "@hermes/telegram",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Telegram Bot API client, long-poll dispatcher, webhook verification, and a fake server.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -1,9 +1,10 @@
 {
   "name": "@hermes/shared",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Types, constants, and pure utilities shared across the workspace.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

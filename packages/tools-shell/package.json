@@ -1,9 +1,10 @@
 {
   "name": "@hermes/tools-shell",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Filesystem tools for Hermes: run allow-listed commands with argv (no shell), timeouts, and output caps.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

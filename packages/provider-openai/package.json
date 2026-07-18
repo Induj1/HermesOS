@@ -1,9 +1,10 @@
 {
   "name": "@hermes/provider-openai",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "OpenAI-compatible chat and embedding provider for Hermes (also serves Ollama's OpenAI endpoint).",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

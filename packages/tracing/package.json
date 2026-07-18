@@ -1,9 +1,10 @@
 {
   "name": "@hermes/tracing",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Deterministic distributed tracing: spans, W3C traceparent propagation, and pluggable exporters.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

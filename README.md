@@ -11,12 +11,13 @@ deterministic (a pure function of injected clocks and transports), tested to
 
 ## Status
 
-**40 of 41 roadmap items are built** and the repository is fully green (lint,
-typecheck, build, format, and per-package coverage thresholds). The one open
-item is the dedicated Ollama-native provider (#16), deferred — Ollama already
-works today through the OpenAI-compatible provider. See [STATUS.md](STATUS.md)
-for the full picture and [ROADMAP.md](ROADMAP.md) for the plan. Every version is
-`0.0.0` pending the first tagged release.
+**HermesOS 1.0.0.** 40 of 41 roadmap items are built and the repository is fully
+green (lint, typecheck, build, format, and per-package coverage thresholds). The
+one open item is the dedicated Ollama-native provider (#16), deferred — Ollama
+already works today through the OpenAI-compatible provider. See
+[STATUS.md](STATUS.md) for the full picture, [ROADMAP.md](ROADMAP.md) for the
+plan, and [RELEASE_NOTES.md](RELEASE_NOTES.md) / [CHANGELOG.md](CHANGELOG.md)
+for the release. Licensed under [MIT](LICENSE).
 
 ## Quick start
 

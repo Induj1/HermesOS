@@ -1,9 +1,10 @@
 {
   "name": "@hermes/kernel",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "The Hermes kernel: agent scheduling, capabilities, and lifecycle.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

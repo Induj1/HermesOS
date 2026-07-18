@@ -1,9 +1,10 @@
 {
   "name": "@hermes/tools-git",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Git tools for Hermes: status, commit, branch, and sync over a confined, cancellable executor.",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
