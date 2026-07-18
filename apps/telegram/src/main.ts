@@ -22,6 +22,7 @@ import { registerHandlers } from './bot.js';
 import { telegramSchema } from './config.js';
 import { toolExecutor } from './executor.js';
 import { buildTools } from './tools.js';
+import { lenientWorkspaceFs } from './workspace-fs.js';
 
 export async function main(): Promise<void> {
   const config = loadConfigFromEnv(telegramSchema);
@@ -55,7 +56,9 @@ export async function main(): Promise<void> {
   const workspaceDir = path.resolve(config.workspaceDir);
   const disk = new NodeFileSystem();
   await disk.mkdir(workspaceDir, true);
-  const fs = rooted(disk, workspaceDir);
+  // rooted enforces the boundary; lenientWorkspaceFs forgives the paths a small
+  // model actually sends (absolute, doubled name, no leading mkdir).
+  const fs = lenientWorkspaceFs(rooted(disk, workspaceDir), workspaceDir);
   const http = guarded(new FetchHttpClient(), { policy: { blockPrivate: true } });
   const shell = config.enableShell
     ? allowlisted(

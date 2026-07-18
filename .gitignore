@@ -87,6 +87,9 @@ tmp/
 # machine-specific permission rules. Never commit.
 .claude/settings.local.json
 
+# The Telegram agent's runtime workspace — files the bot writes at runtime.
+hermes-workspace/
+
 # ---------------------------------------------------------------------------
 # OS
 # ---------------------------------------------------------------------------
