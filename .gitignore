@@ -6,7 +6,9 @@
 !.env.example
 *.pem
 *.key
-secrets/
+# Anchored to the repo root so it ignores a local ./secrets/ of real secret
+# files without also swallowing the packages/secrets source package.
+/secrets/
 
 # ---------------------------------------------------------------------------
 # Dependencies
