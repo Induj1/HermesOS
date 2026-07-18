@@ -62,8 +62,8 @@ tested against a fake before a key exists — only _live_ verification needs one
 | --- | -------------- | ------------- |
 | 26  | Authentication | ✅ (RFC-0029) |
 | 27  | Authorization  | ✅ (RFC-0030) |
-| 28  | Plugin SDK     | ⬜            |
-| 29  | Plugin Loader  | ⬜            |
+| 28  | Plugin SDK     | ✅ (RFC-0031) |
+| 29  | Plugin Loader  | ✅ (RFC-0032) |
 | 30  | Configuration  | ✅ (RFC-0024) |
 | 31  | Secrets        | ✅ (RFC-0025) |
 | 32  | Observability  | ✅ (RFC-0028) |

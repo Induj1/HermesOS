@@ -14,12 +14,13 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   high-fidelity fakes, with only live API calls left. **The runtime tier is
   underway**: scheduler (#21), worker (#22), and the REST layer (#24) are done;
   metrics (#33) lands the first observability piece.
-- **Remaining:** CLI (#25), Telegram (#23, gated), and plugin SDK/loader
-  (#28–29) — then the Production tier (#36–41, scoped in
-  `docs/architecture/production-tier.md`). The **platform tier is nearly
-  complete**: config (#30), secrets (#31), observability (#32), metrics (#33),
-  tracing (#34), health (#35), authentication (#26), and authorization (#27) all
-  ship. None are blocked; each is buildable against fakes.
+- **The entire Platform tier (#26–35) is complete:** auth (#26), authz (#27),
+  plugin SDK (#28), plugin loader (#29), config (#30), secrets (#31),
+  observability (#32), metrics (#33), tracing (#34), and health (#35).
+- **Remaining:** CLI (#25) and Telegram (#23, gated) in the interfaces tier,
+  then the Production tier (#36–41, scoped in
+  `docs/architecture/production-tier.md`). Neither is blocked; each is buildable
+  against fakes.
 - **Tracked consolidation:** the cancellable-`sleep` helper is duplicated in
   `@hermes/embedding` and `@hermes/tools-github`; the worker now uses the
   kernel's `Clock` instead. Refactoring the other two would change their public
@@ -61,6 +62,8 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Observability    | `@hermes/logger`             | 18    | Structured leveled logs; JSON sinks; secret-safe fields; trace correlation.  |
 | Authentication   | `@hermes/auth`               | 25    | Principals; API-key/bearer credentials; constant-time compare; chain.        |
 | Authorization    | `@hermes/authz`              | 20    | Wildcard scopes; deny-override, default-deny policy engine over principals.  |
+| Plugin SDK       | `@hermes/plugin-sdk`         | 4     | Versioned manifest + `definePlugin` over the kernel `PluginContext`.         |
+| Plugin Loader    | `@hermes/plugin-loader`      | 18    | Enforces API-version compat; validates manifests; adapts to kernel plugins.  |
 
 ## Production tier — defined, not yet built
 
@@ -170,8 +173,10 @@ These are documented in the relevant RFCs and are deliberate, not defects:
   visibility.
 - **Filesystem symlinks are reported, not resolved** (RFC-0007 §7.1) — rooting
   is airtight for path strings, best-effort for links.
-- **Tool versioning is declared, not enforced** (RFC-0006 §7.3) — waits for the
-  Plugin Loader, its first consumer.
+- ~~**Tool versioning is declared, not enforced** (RFC-0006 §7.3)~~ — **closed**
+  by the Plugin Loader (#29, RFC-0032): a plugin declares the API version it
+  targets and the loader enforces semver compatibility before the kernel runs
+  its `setup`.
 - **Path confinement is duplicated** between `@hermes/tools-fs` and
   `@hermes/tools-git` (RFC-0010 §7) — a deliberate choice over coupling git to
   the filesystem tools package; it graduates to a shared utility at the third
