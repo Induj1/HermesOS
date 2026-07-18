@@ -11,6 +11,7 @@ import {
   boolean,
   integer,
   list,
+  number,
   oneOf,
   string,
   url,
@@ -151,6 +152,41 @@ export const telegramSchema = {
   memoryRecall: integer()
     .default(5)
     .describe('Memories recalled per message (0 = off).'),
+
+  /** Send a scheduled morning briefing. `ENABLE_BRIEFING`. */
+  enableBriefing: boolean().default(true).describe('Send a daily morning briefing.'),
+
+  /** Cron for the briefing (5-field, UTC). `BRIEFING_CRON`. Default 08:00 IST. */
+  briefingCron: string().default('30 2 * * *').describe('Briefing cron (UTC).'),
+
+  /** City name shown in the briefing. `BRIEFING_CITY`. */
+  briefingCity: string()
+    .default('Bengaluru')
+    .describe('City for the briefing weather.'),
+
+  /** Latitude/longitude for the weather lookup. `BRIEFING_LAT` / `BRIEFING_LON`. */
+  briefingLat: number().default(12.97).describe('Weather latitude.'),
+  briefingLon: number().default(77.59).describe('Weather longitude.'),
+
+  /**
+   * Chat to send scheduled messages to. `BRIEFING_CHAT_ID`. If unset, every chat
+   * that has messaged the bot (from memory) receives them.
+   */
+  briefingChatId: integer()
+    .optional()
+    .describe('Target chat id for scheduled messages.'),
+
+  /**
+   * Repo to watch CI for, `owner/name`. `CI_REPO`. Empty disables the watcher.
+   * Uses the public GitHub Actions API — no token needed for a public repo.
+   */
+  ciRepo: string().default('').describe('owner/name to watch CI for (empty = off).'),
+
+  /** Branch whose CI is watched. `CI_BRANCH`. */
+  ciBranch: string().default('main').describe('Branch to watch CI for.'),
+
+  /** Cron for the CI check (5-field, UTC). `CI_CRON`. Default ~23:30 IST. */
+  ciCron: string().default('0 18 * * *').describe('CI-watcher cron (UTC).'),
 
   /** How often to poll Telegram for updates, in ms. `POLL_INTERVAL_MS`. */
   pollIntervalMs: integer().default(1_000).describe('Long-poll interval in ms.'),

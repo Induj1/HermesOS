@@ -14,12 +14,14 @@ import { loadConfigFromEnv } from '@hermes/config';
 import { systemClock } from '@hermes/kernel';
 import { StructuredLogger, consoleSink } from '@hermes/logger';
 import { OpenAIChatModel, OpenAIClient } from '@hermes/provider-openai';
+import { Scheduler } from '@hermes/scheduler';
 import { NodeFileSystem, rooted } from '@hermes/tools-fs';
 import { FetchHttpClient, guarded } from '@hermes/tools-http';
 import { NodeShellExecutor, allowlisted } from '@hermes/tools-shell';
 import { TelegramBot, TelegramClient } from '@hermes/telegram';
 import type { MemoryAdapter } from '@hermes/agent';
 import { buildAgentRuntime } from './agent.js';
+import { formatBriefing, formatCiAlert, isCiFailing } from './briefing.js';
 import { registerHandlers } from './bot.js';
 import { telegramSchema } from './config.js';
 import { toolExecutor } from './executor.js';
@@ -156,11 +158,116 @@ export async function main(): Promise<void> {
     stop('SIGINT');
   });
 
+  // Scheduled pushes: a morning briefing, and (if CI_REPO is set) a CI watcher.
+  const scheduler = new Scheduler<{ kind: 'briefing' | 'ci' }>();
+  if (config.enableBriefing) {
+    scheduler.add(
+      {
+        id: 'briefing',
+        trigger: { kind: 'cron', expression: config.briefingCron },
+        payload: { kind: 'briefing' },
+      },
+      Date.now(),
+    );
+  }
+  if (config.ciRepo !== '') {
+    scheduler.add(
+      {
+        id: 'ci',
+        trigger: { kind: 'cron', expression: config.ciCron },
+        payload: { kind: 'ci' },
+      },
+      Date.now(),
+    );
+  }
+
+  const fetchJson = async <T>(target: string): Promise<T> => {
+    const res = await fetch(target, { headers: { 'user-agent': 'hermes-telegram' } });
+    if (!res.ok) throw new Error(`GET ${target} -> ${String(res.status)}`);
+    return (await res.json()) as T;
+  };
+  const scheduledTargets = (): number[] =>
+    config.briefingChatId !== undefined
+      ? [config.briefingChatId]
+      : memory.subjects().map(Number);
+  const sendAll = async (text: string): Promise<void> => {
+    for (const chatId of scheduledTargets()) await client.sendMessage({ chatId, text });
+  };
+  const runBriefing = async (): Promise<void> => {
+    const weather = await fetchJson<{
+      current: { temperature_2m: number };
+      daily: { temperature_2m_max: number[]; temperature_2m_min: number[] };
+    }>(
+      `https://api.open-meteo.com/v1/forecast?latitude=${String(config.briefingLat)}` +
+        `&longitude=${String(config.briefingLon)}&current=temperature_2m` +
+        `&daily=temperature_2m_max,temperature_2m_min&timezone=auto`,
+    );
+    const ids = await fetchJson<number[]>(
+      'https://hacker-news.firebaseio.com/v0/topstories.json',
+    );
+    const items = await Promise.all(
+      ids
+        .slice(0, 5)
+        .map((id) =>
+          fetchJson<{ title?: string }>(
+            `https://hacker-news.firebaseio.com/v0/item/${String(id)}.json`,
+          ),
+        ),
+    );
+    await sendAll(
+      formatBriefing({
+        city: config.briefingCity,
+        date: new Date().toDateString(),
+        weather: {
+          tempNow: weather.current.temperature_2m,
+          tempMax: weather.daily.temperature_2m_max[0] ?? 0,
+          tempMin: weather.daily.temperature_2m_min[0] ?? 0,
+        },
+        headlines: items.map((item) => item.title ?? '(untitled)'),
+      }),
+    );
+  };
+  const runCi = async (): Promise<void> => {
+    const data = await fetchJson<{
+      workflow_runs?: { conclusion: string | null; html_url: string }[];
+    }>(
+      `https://api.github.com/repos/${config.ciRepo}/actions/runs` +
+        `?branch=${config.ciBranch}&per_page=1`,
+    );
+    const run = data.workflow_runs?.[0];
+    if (run !== undefined && isCiFailing(run.conclusion)) {
+      await sendAll(
+        formatCiAlert({
+          repo: config.ciRepo,
+          branch: config.ciBranch,
+          conclusion: run.conclusion,
+          url: run.html_url,
+        }),
+      );
+    }
+  };
+  const timer = setInterval(() => {
+    for (const job of scheduler.poll(Date.now())) {
+      const work = job.payload.kind === 'briefing' ? runBriefing() : runCi();
+      work.catch((thrown: unknown) => {
+        logger.warn('scheduled job failed', {
+          id: job.id,
+          error: (thrown as Error).message,
+        });
+      });
+    }
+  }, 60_000);
+  controller.signal.addEventListener('abort', () => {
+    clearInterval(timer);
+  });
+
   logger.info('bot ready', {
     bot: me.username ?? me.first_name,
     model: config.ollamaModel,
     tools: tools.length,
     shell: config.enableShell,
+    briefing: config.enableBriefing,
+    ciWatch: config.ciRepo !== '' ? config.ciRepo : 'off',
   });
 
   await bot.run(systemClock, {

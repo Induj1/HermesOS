@@ -39,6 +39,7 @@
     "@hermes/logger": "workspace:*",
     "@hermes/model": "workspace:*",
     "@hermes/provider-openai": "workspace:*",
+    "@hermes/scheduler": "workspace:*",
     "@hermes/telegram": "workspace:*",
     "@hermes/tools": "workspace:*",
     "@hermes/tools-fs": "workspace:*",

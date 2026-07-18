@@ -123,6 +123,13 @@ export class MemoryStore {
     return this.#items.length;
   }
 
+  /** Distinct real subjects (chat ids) seen, excluding internal ones like docs. */
+  subjects(): readonly string[] {
+    return [...new Set(this.#items.map((item) => item.subject))].filter(
+      (subject) => !subject.startsWith('__'),
+    );
+  }
+
   /** Embed and persist one memory. */
   async remember(memory: NewMemory): Promise<MemoryItem> {
     const [embedding] = await this.#embed([memory.content]);

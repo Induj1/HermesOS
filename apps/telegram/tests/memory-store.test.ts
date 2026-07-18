@@ -115,6 +115,15 @@ describe('MemoryStore', () => {
     expect(await store.recall('A', 'x')).toEqual([]); // query embedding is undefined
   });
 
+  it('lists distinct real subjects, excluding internal ones', async () => {
+    const store = await MemoryStore.load(opts());
+    await store.remember({ subject: 'chat-1', kind: 'fact', content: 'a' });
+    await store.remember({ subject: 'chat-1', kind: 'fact', content: 'b' });
+    await store.remember({ subject: 'chat-2', kind: 'fact', content: 'c' });
+    await store.remember({ subject: '__docs__', kind: 'fact', content: 'd' });
+    expect([...store.subjects()].sort()).toEqual(['chat-1', 'chat-2']);
+  });
+
   it('starts empty on a corrupt or non-array file', async () => {
     await fsp.writeFile(FILE, 'not json', 'utf8');
     expect((await MemoryStore.load(opts())).size).toBe(0);

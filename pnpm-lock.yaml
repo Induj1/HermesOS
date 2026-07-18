@@ -105,6 +105,9 @@ importers:
       '@hermes/provider-openai':
         specifier: workspace:*
         version: link:../../packages/provider-openai
+      '@hermes/scheduler':
+        specifier: workspace:*
+        version: link:../../packages/scheduler
       '@hermes/telegram':
         specifier: workspace:*
         version: link:../../packages/telegram
