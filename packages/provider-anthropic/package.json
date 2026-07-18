@@ -27,7 +27,6 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@hermes/kernel": "workspace:*",
     "@hermes/model": "workspace:*",
     "@hermes/tools-http": "workspace:*",
     "@hermes/provider-http": "workspace:*"

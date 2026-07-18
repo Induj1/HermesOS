@@ -160,9 +160,6 @@ importers:
 
   packages/context:
     dependencies:
-      '@hermes/kernel':
-        specifier: workspace:*
-        version: link:../kernel
       '@hermes/model':
         specifier: workspace:*
         version: link:../model
@@ -375,9 +372,6 @@ importers:
 
   packages/provider-anthropic:
     dependencies:
-      '@hermes/kernel':
-        specifier: workspace:*
-        version: link:../kernel
       '@hermes/model':
         specifier: workspace:*
         version: link:../model
@@ -453,9 +447,6 @@ importers:
       '@hermes/embedding':
         specifier: workspace:*
         version: link:../embedding
-      '@hermes/kernel':
-        specifier: workspace:*
-        version: link:../kernel
       '@hermes/model':
         specifier: workspace:*
         version: link:../model
@@ -797,9 +788,6 @@ importers:
       '@hermes/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
-      '@hermes/memory':
-        specifier: workspace:*
-        version: link:../memory
       '@hermes/planner':
         specifier: workspace:*
         version: link:../planner

@@ -28,7 +28,6 @@
   },
   "dependencies": {
     "@hermes/kernel": "workspace:*",
-    "@hermes/memory": "workspace:*",
     "@hermes/planner": "workspace:*"
   },
   "devDependencies": {
