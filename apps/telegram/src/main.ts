@@ -38,7 +38,7 @@ export async function main(): Promise<void> {
   // tools, but not for our own model calls.
   const model = new OpenAIChatModel({
     client: new OpenAIClient({
-      http: new FetchHttpClient(),
+      http: new FetchHttpClient({ timeoutMs: config.modelTimeoutMs }),
       baseUrl: config.ollamaBaseUrl,
       provider: 'ollama',
     }),

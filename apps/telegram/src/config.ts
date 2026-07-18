@@ -40,6 +40,15 @@ export const telegramSchema = {
     .describe('The Ollama model tag the agent reasons with.'),
 
   /**
+   * HTTP timeout for a model call, in ms. `MODEL_TIMEOUT_MS`. Generous by
+   * default: a local model cold-loads several GB from disk on its first request
+   * after a restart, which easily exceeds a web client's usual 30s.
+   */
+  modelTimeoutMs: integer()
+    .default(120_000)
+    .describe('HTTP timeout for model calls in ms.'),
+
+  /**
    * The directory the agent's filesystem tools are confined to. `WORKSPACE_DIR`.
    * All reads and writes are rooted here, so the bot cannot touch the rest of
    * the disk even if the model asks it to.
