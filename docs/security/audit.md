@@ -36,8 +36,10 @@ use the platform, not third-party libraries — so the transitive attack surface
 is dominated by the toolchain (TypeScript, Vitest, ESLint), which does not ship
 in the production image.
 
-**Action:** add `pnpm audit --prod` as a CI step and record the result here on
-each change.
+**Result (this review):** `pnpm audit` reports **no known vulnerabilities** for
+both production and full dependency sets. `pnpm audit --prod` now runs as a CI
+job (`.github/workflows/ci.yml`), so a newly-disclosed vulnerability in a
+production dependency fails the build; triage findings here.
 
 ## 3. Cross-cutting observations
 

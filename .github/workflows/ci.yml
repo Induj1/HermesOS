@@ -106,3 +106,22 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Vitest (with coverage thresholds)
         run: pnpm run test:coverage
+
+  # Fail the build on a known vulnerability in a production dependency. The
+  # runtime surface is tiny (one non-@hermes/* dep), so this should stay quiet;
+  # when it fires, triage the finding in docs/security/audit.md.
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: pnpm audit (production dependencies)
+        run: pnpm audit --prod

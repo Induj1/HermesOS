@@ -75,5 +75,9 @@ and its resolutions.
   RFC-0032); version compatibility is enforced, capability isolation is not.
 - Live webhook-signature hardening (GitHub, Telegram) needs real secrets to
   confirm against genuine deliveries — see `LIVE_VERIFICATION.md`.
-- Wire `pnpm audit --prod` into CI and record the result in
-  `docs/security/audit.md`.
+
+## Dependency audit result
+
+`pnpm audit` (production and full dependency sets) reports **no known
+vulnerabilities**. A `pnpm audit --prod` job now runs in CI, so a
+newly-disclosed vulnerability in a production dependency fails the build.
