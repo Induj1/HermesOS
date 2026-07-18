@@ -61,7 +61,7 @@ tested against a fake before a key exists — only _live_ verification needs one
 | #   | Subsystem      | Status        |
 | --- | -------------- | ------------- |
 | 26  | Authentication | ✅ (RFC-0029) |
-| 27  | Authorization  | ⬜            |
+| 27  | Authorization  | ✅ (RFC-0030) |
 | 28  | Plugin SDK     | ⬜            |
 | 29  | Plugin Loader  | ⬜            |
 | 30  | Configuration  | ✅ (RFC-0024) |
