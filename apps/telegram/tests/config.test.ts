@@ -11,7 +11,7 @@ describe('telegramSchema', () => {
     expect(config.ollamaModel).toBe('qwen2.5:0.5b');
     expect(config.workspaceDir).toBe('./hermes-workspace');
     expect(config.enableShell).toBe(false);
-    expect(config.maxTurns).toBe(6);
+    expect(config.maxTurns).toBe(12);
     expect(config.pollIntervalMs).toBe(1_000);
     expect(config.logLevel).toBe('info');
     expect(config.serviceName).toBe('hermes-telegram');

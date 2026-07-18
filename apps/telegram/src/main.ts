@@ -7,6 +7,7 @@
  * for that reason — it is exercised by running the bot).
  */
 
+import path from 'node:path';
 import process from 'node:process';
 import { loadConfigFromEnv } from '@hermes/config';
 import { systemClock } from '@hermes/kernel';
@@ -47,16 +48,19 @@ export async function main(): Promise<void> {
 
   // Filesystem confined to the workspace; HTTP guarded against SSRF (loopback
   // and private ranges blocked); shell off unless opted in, and then allowlisted.
-  // Create the workspace up front so the first file tool does not fail on a
-  // missing directory.
+  // Resolve the workspace to an ABSOLUTE path first: `rooted` normalises its
+  // root against the filesystem root, so a relative "./hermes-workspace" would
+  // become "/hermes-workspace" (unwritable) rather than a dir under the cwd.
+  // Create it up front so the first file tool does not fail on a missing dir.
+  const workspaceDir = path.resolve(config.workspaceDir);
   const disk = new NodeFileSystem();
-  await disk.mkdir(config.workspaceDir, true);
-  const fs = rooted(disk, config.workspaceDir);
+  await disk.mkdir(workspaceDir, true);
+  const fs = rooted(disk, workspaceDir);
   const http = guarded(new FetchHttpClient(), { policy: { blockPrivate: true } });
   const shell = config.enableShell
     ? allowlisted(
         new NodeShellExecutor({
-          cwd: config.workspaceDir,
+          cwd: workspaceDir,
           timeoutMs: config.shellTimeoutMs,
           maxOutputBytes: config.shellMaxOutputBytes,
         }),

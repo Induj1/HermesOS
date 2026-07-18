@@ -121,7 +121,7 @@ export const telegramSchema = {
    * is one model call plus any tools it asked for; the budget stops a runaway
    * loop from answering a phone message forever.
    */
-  maxTurns: integer().default(6).describe('Max reasoning turns per message.'),
+  maxTurns: integer().default(12).describe('Max reasoning turns per message.'),
 
   /** How often to poll Telegram for updates, in ms. `POLL_INTERVAL_MS`. */
   pollIntervalMs: integer().default(1_000).describe('Long-poll interval in ms.'),

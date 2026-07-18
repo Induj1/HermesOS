@@ -24,6 +24,11 @@ const SYSTEM_PROMPT = [
   'install dependencies, run builds, and check your work.',
   'You cannot host a long-running dev server (each command must finish), so build',
   'and save the project, then tell the user the file paths and how to run it.',
+  'FILE PATHS: your file tools are rooted at your workspace. Use plain relative',
+  'paths like "site/index.html" — never an absolute path, and never a',
+  '"/hermes-workspace" prefix. fs.write does NOT create folders: call fs.mkdir',
+  'on the directory first, or just write files at the top level. When you can,',
+  'prefer a single self-contained file (e.g. one index.html with inline CSS).',
   'Report what you actually did — the commands you ran and the files you wrote,',
   'with paths. Keep replies short enough to read on a phone.',
 ].join(' ');
