@@ -138,6 +138,15 @@ export const telegramSchema = {
     .describe('Ollama vision model (empty = off).'),
 
   /**
+   * Path to a whisper.cpp ggml model for voice-note transcription.
+   * `WHISPER_MODEL`. Empty disables voice. Requires whisper-cli + ffmpeg on PATH.
+   */
+  whisperModel: string().default('').describe('whisper.cpp model path (empty = off).'),
+
+  /** The whisper.cpp CLI binary. `WHISPER_CLI`. */
+  whisperCli: string().default('whisper-cli').describe('whisper.cpp CLI command.'),
+
+  /**
    * Where persistent data (the memory store) lives. `DATA_DIR`. Kept out of the
    * agent's writable workspace so the model cannot tamper with its own memory.
    */

@@ -102,6 +102,50 @@ describe('handleMessage', () => {
     expect(replies).toContain('A photo of a cat.');
   });
 
+  it('transcribes a voice note and runs the agent on the transcript', async () => {
+    const replies: string[] = [];
+    const ctx = {
+      text: '',
+      command: undefined,
+      args: [],
+      message: { chat: { id: 42 }, voice: { file_id: 'voice-1' } },
+      reply: (m: string) => {
+        replies.push(m);
+        return Promise.resolve(undefined);
+      },
+    } as unknown as MessageContext;
+
+    await handleMessage(ctx, {
+      runtime: runtimeWith('the answer'),
+      onVoice: (fileId) => Promise.resolve(`transcribed ${fileId}`),
+    });
+
+    expect(replies).toContain('🎙 "transcribed voice-1"');
+    expect(replies).toContain('the answer');
+  });
+
+  it('apologises when transcription fails', async () => {
+    const replies: string[] = [];
+    const ctx = {
+      text: '',
+      command: undefined,
+      args: [],
+      message: { chat: { id: 42 }, voice: { file_id: 'v' } },
+      reply: (m: string) => {
+        replies.push(m);
+        return Promise.resolve(undefined);
+      },
+    } as unknown as MessageContext;
+
+    await handleMessage(ctx, {
+      runtime: runtimeWith('unused'),
+      onVoice: () => Promise.reject(new Error('no whisper')),
+      logger: spyLogger(),
+    });
+
+    expect(replies.some((r) => /could not transcribe/i.test(r))).toBe(true);
+  });
+
   it('apologises when the vision hook fails', async () => {
     const { ctx, replies } = fakePhotoContext('', [
       { file_id: 'x', width: 1, height: 1 },
@@ -165,7 +209,7 @@ describe('registerHandlers', () => {
       onIngest: () => Promise.resolve('Ingested 2 files.'),
     });
     const ok = fakeContext('/ingest');
-    await handlers.ingest?.(ok.ctx);
+    await handlers['ingest']?.(ok.ctx);
     expect(ok.replies).toContain('Ingested 2 files.');
 
     registerHandlers(bot, {
@@ -174,7 +218,7 @@ describe('registerHandlers', () => {
       logger: spyLogger(),
     });
     const bad = fakeContext('/ingest');
-    await handlers.ingest?.(bad.ctx);
+    await handlers['ingest']?.(bad.ctx);
     expect(bad.replies.some((r) => /Ingest failed/i.test(r))).toBe(true);
   });
 });

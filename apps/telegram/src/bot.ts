@@ -29,11 +29,18 @@ export interface BotDeps {
     prompt: string,
     subject: string,
   ) => Promise<string>;
+  /** Transcribe a voice note (by Telegram file id) to text. */
+  readonly onVoice?: (fileId: string) => Promise<string>;
 }
 
 /** Photo + caption off the raw update — fields @hermes/telegram does not type. */
 function photoOf(message: unknown): { photo?: readonly PhotoSize[]; caption?: string } {
   return message as { photo?: readonly PhotoSize[]; caption?: string };
+}
+
+/** The voice note's file id off the raw update, if present. */
+function voiceFileId(message: unknown): string | undefined {
+  return (message as { voice?: { file_id?: string } }).voice?.file_id;
 }
 
 /** The slice of `TelegramBot` this module needs — the two registration methods. */
@@ -63,7 +70,21 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
     return;
   }
 
-  const text = ctx.text.trim();
+  // A voice note: transcribe it, then treat the transcript as the task.
+  let text = ctx.text.trim();
+  const voiceId = voiceFileId(ctx.message);
+  if (voiceId !== undefined && deps.onVoice !== undefined) {
+    await ctx.reply('Transcribing your voice note…');
+    try {
+      text = (await deps.onVoice(voiceId)).trim();
+    } catch (thrown) {
+      deps.logger?.error('transcription failed', { error: (thrown as Error).message });
+      await ctx.reply('I could not transcribe that voice note.');
+      return;
+    }
+    if (text !== '') await ctx.reply(`🎙 "${text}"`);
+  }
+
   if (text === '') {
     await ctx.reply('Send me a task in text and I will work on it.');
     return;

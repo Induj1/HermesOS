@@ -7,9 +7,12 @@
  * for that reason — it is exercised by running the bot).
  */
 
+import { execFile } from 'node:child_process';
 import { promises as fsp } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { promisify } from 'node:util';
 import { loadConfigFromEnv } from '@hermes/config';
 import { systemClock } from '@hermes/kernel';
 import { StructuredLogger, consoleSink } from '@hermes/logger';
@@ -30,6 +33,8 @@ import { DOCS_SUBJECT, ingestDocs } from './rag.js';
 import { buildTeamRuntime } from './team.js';
 import { buildTools } from './tools.js';
 import { lenientWorkspaceFs } from './workspace-fs.js';
+
+const execFileAsync = promisify(execFile);
 
 export async function main(): Promise<void> {
   const config = loadConfigFromEnv(telegramSchema);
@@ -159,6 +164,37 @@ export async function main(): Promise<void> {
     return json.message?.content ?? '(the vision model returned nothing)';
   };
 
+  // A voice note: download the OGG, convert to 16kHz WAV with ffmpeg, and
+  // transcribe it with whisper.cpp. Local, offline, no API.
+  const onVoice = async (fileId: string): Promise<string> => {
+    const meta = (await (
+      await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`)
+    ).json()) as { result?: { file_path?: string } };
+    const filePath = meta.result?.file_path;
+    if (filePath === undefined) throw new Error('Telegram getFile returned no path');
+    const bytes = await (
+      await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`)
+    ).arrayBuffer();
+
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-voice-'));
+    try {
+      const oga = path.join(dir, 'in.oga');
+      const wav = path.join(dir, 'out.wav');
+      await fsp.writeFile(oga, Buffer.from(bytes));
+      await execFileAsync('ffmpeg', ['-y', '-i', oga, '-ar', '16000', '-ac', '1', wav]);
+      const { stdout } = await execFileAsync(config.whisperCli, [
+        '-m',
+        config.whisperModel,
+        '-f',
+        wav,
+        '-nt',
+      ]);
+      return stdout.trim();
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
     token: config.telegramBotToken,
@@ -176,6 +212,7 @@ export async function main(): Promise<void> {
       memory.remember({ subject, kind: 'episode', content: text }),
     onIngest,
     ...(config.visionModel === '' ? {} : { onPhoto }),
+    ...(config.whisperModel === '' ? {} : { onVoice }),
   });
 
   const controller = new AbortController();
