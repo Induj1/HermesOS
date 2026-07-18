@@ -21,7 +21,9 @@ COPY . .
 RUN pnpm install --frozen-lockfile && pnpm build
 
 # Produce a self-contained deployment of just the API and its prod deps.
-RUN pnpm --filter @hermes/api deploy --prod /prod/api
+# `--legacy` is required from pnpm v10+: it deploys workspace packages by copying
+# their built output rather than requiring `inject-workspace-packages=true`.
+RUN pnpm --filter @hermes/api deploy --legacy --prod /prod/api
 
 FROM node:22-slim AS runtime
 ENV NODE_ENV=production
