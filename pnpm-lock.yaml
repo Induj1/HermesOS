@@ -52,13 +52,38 @@ importers:
         version: 8.64.0(eslint@10.7.0)(typescript@5.9.3)
 
   apps/api:
+    dependencies:
+      '@hermes/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@hermes/health':
+        specifier: workspace:*
+        version: link:../../packages/health
+      '@hermes/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
+      '@hermes/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@hermes/metrics':
+        specifier: workspace:*
+        version: link:../../packages/metrics
+      '@hermes/rest':
+        specifier: workspace:*
+        version: link:../../packages/rest
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 3.2.7(vitest@3.2.7(@types/node@22.20.1)(yaml@2.9.0))
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(yaml@2.9.0)
 
   apps/telegram:
     devDependencies:

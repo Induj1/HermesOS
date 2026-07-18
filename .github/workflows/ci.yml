@@ -69,3 +69,40 @@ jobs:
 
       - name: tsc
         run: pnpm run typecheck
+
+  # The build must pass on its own: dist/ is what the Docker image ships, and a
+  # package that type-checks can still fail to emit (a bad "exports" path, a
+  # rootDir mismatch). Kept separate from typecheck so a broken emit is named.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm run build
+
+  # Tests with coverage. Each package enforces its own ≥95% branch threshold in
+  # vitest.config.ts, so a coverage regression fails here rather than merging.
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Vitest (with coverage thresholds)
+        run: pnpm run test:coverage

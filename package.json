@@ -15,6 +15,7 @@
     "build": "pnpm --recursive --if-present run build",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --recursive --if-present run test",
+    "test:coverage": "pnpm --recursive --if-present run test:coverage",
     "test:watch": "pnpm --recursive --parallel --if-present run test:watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

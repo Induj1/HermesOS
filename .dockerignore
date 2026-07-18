@@ -1,0 +1,14 @@
+# Keep the build context small and the image clean. node_modules is reinstalled
+# in the image from the lockfile; dist/ is rebuilt; local env and VCS never ship.
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+.git
+.github
+.env
+.env.*
+!.env.example
+**/.DS_Store
+**/*.tsbuildinfo
+docs

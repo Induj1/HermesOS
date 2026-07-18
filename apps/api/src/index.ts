@@ -1,8 +1,10 @@
 /**
- * @hermes/api — HTTP API surface for HermesOS.
+ * @hermes/api — the HermesOS HTTP API service.
  *
- * Scaffold only: this package has no implementation yet. The export below
- * exists so the package has a valid entry point that builds and type-checks;
- * replace it with the real public surface.
+ * `buildApp(deps)` is the composition root as a pure function (operational
+ * endpoints: `/`, `/livez`, `/readyz`, `/metrics`); `main()` (in `main.ts`, the
+ * `hermes-api` bin) wires it to config, real dependencies, and a socket.
  */
-export const PACKAGE_NAME = '@hermes/api';
+
+export { buildApp, type AppDeps } from './app.js';
+export { API_VERSION, apiSchema, type ApiConfig } from './config.js';

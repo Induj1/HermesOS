@@ -73,14 +73,14 @@ tested against a fake before a key exists — only _live_ verification needs one
 
 ## Production
 
-| #   | Subsystem                | Status        |
-| --- | ------------------------ | ------------- |
-| 36  | Docker Production        | ⬜            |
-| 37  | CI/CD                    | ⬜            |
-| 38  | Security Audit           | ⬜            |
-| 39  | Load Testing             | ✅ (RFC-0035) |
-| 40  | Performance Optimization | ⬜            |
-| 41  | Production Documentation | ⬜            |
+| #   | Subsystem                | Status           |
+| --- | ------------------------ | ---------------- |
+| 36  | Docker Production        | ✅ (RFC-0036)    |
+| 37  | CI/CD                    | ✅ 🔧 (RFC-0036) |
+| 38  | Security Audit           | ✅ (RFC-0036)    |
+| 39  | Load Testing             | ✅ (RFC-0035)    |
+| 40  | Performance Optimization | ✅ (RFC-0036)    |
+| 41  | Production Documentation | ✅ (RFC-0036)    |
 
 Each Production milestone is defined explicitly — package (most are repo-level
 artifacts, not packages), responsibilities, dependencies, and completion

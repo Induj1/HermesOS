@@ -155,6 +155,36 @@ services:
               count: ${OLLAMA_GPU_COUNT:-all}
               capabilities: [gpu]
 
+  # The HermesOS API service, built from the repo Dockerfile. Opt-in via the
+  # `app` profile so native development is unaffected:
+  #   docker compose --profile app up --build
+  # Configuration is read from the environment (see docs/deployment); the image
+  # bakes in nothing. Liveness is checked from inside the container.
+  api:
+    <<: *service-defaults
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes-api
+    environment:
+      PORT: "3000"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: hermes-api
+    ports:
+      - "${HOST_BIND:-127.0.0.1}:${API_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/livez').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    stop_grace_period: 30s
+
 volumes:
   postgres-data:
   redis-data:

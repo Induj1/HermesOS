@@ -5,86 +5,99 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **25 subsystems complete** (incl. shared `provider-http`, `worker`, `rest`,
-  `metrics`), each with an RFC, a README, and enforced ≥95% test coverage.
-- **2212 tests** pass repo-wide (23 packages + 4 services). Lint, typecheck,
-  build, and format are clean.
-- **The model tier is complete** (#14–20): embedding platform, router, and the
-  OpenAI/Ollama, Anthropic, and Gemini providers — all verified against
-  high-fidelity fakes, with only live API calls left. **The runtime tier is
-  underway**: scheduler (#21), worker (#22), and the REST layer (#24) are done;
-  metrics (#33) lands the first observability piece.
-- **The entire Platform tier (#26–35) is complete:** auth (#26), authz (#27),
-  plugin SDK (#28), plugin loader (#29), config (#30), secrets (#31),
-  observability (#32), metrics (#33), tracing (#34), and health (#35).
-- **The interfaces tier is complete:** REST (#24), CLI (#25), and Telegram (#23,
-  built and tested against a fake — 🔑 a bot token for live). **Every
-  application subsystem (#1–35) now ships.** The only remaining roadmap section
-  is the **Production tier (#36–41)** — Docker, CI/CD, security audit, load
-  testing, performance, and production docs — scoped in
-  `docs/architecture/production-tier.md`.
-- **Tracked consolidation:** the cancellable-`sleep` helper is duplicated in
-  `@hermes/embedding` and `@hermes/tools-github`; the worker now uses the
-  kernel's `Clock` instead. Refactoring the other two would change their public
-  `sleep` option, so it is deferred as a deliberate, low-risk cleanup rather
-  than done at session end.
+- **The entire roadmap is complete — all 41 items (#1–41).** Every subsystem
+  ships with an RFC, a README, and enforced ≥95% branch coverage; the Production
+  tier (#36–41) is built, with the composition-root API service (`apps/api`)
+  wiring the platform together.
+- **2462 tests** pass repo-wide (34 packages + 4 services). Lint, typecheck,
+  build, format, and coverage thresholds are all clean.
+- **Every tier is done:** foundations (#1–7), tools (#8–13), models (#14–20),
+  runtime & interfaces (#21–25), platform (#26–35), and production (#36–41).
+- **Credential/infra-gated verification is all that remains** — code-complete,
+  fake-verified subsystems whose _live_ confirmation needs an external key or
+  runtime: the four model providers, git remote, GitHub, browser, Telegram, and
+  Postgres (all in "Simulated / awaiting live verification"), plus the three
+  Production steps that need infrastructure to _execute_ — the
+  `docker build`/run (#36), the CI/CD workflow runs (#37), and the `pnpm audit`
+  result (#38) — none are code gaps.
+- **Tracked near-duplications (deliberate, below rule-of-three):** the
+  cancellable-`sleep` helper in `@hermes/embedding` and `@hermes/tools-github`
+  (the worker uses the kernel `Clock` instead; refactoring the other two would
+  change their public `sleep` option); and a 6-line pure-JS `constantTimeEqual`
+  in `@hermes/auth` and `@hermes/telegram` (`@hermes/tools-github` uses the
+  stronger `crypto.timingSafeEqual` for HMAC — a distinct primitive, not a third
+  copy). Extraction is deferred: it would either couple an interface package to
+  a security package or cost `@hermes/auth` its documented zero-dependency
+  property, for marginal gain. Both are recorded, not forgotten.
 
 ## Complete
 
-| Subsystem        | Package                      | Tests | Notes                                                                        |
-| ---------------- | ---------------------------- | ----- | ---------------------------------------------------------------------------- |
-| Kernel           | `@hermes/kernel`             | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.              |
-| Memory           | `@hermes/memory`             | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.                |
-| Planner          | `@hermes/planner`            | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.            |
-| Execution Engine | `@hermes/execution`          | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.                    |
-| Agent Framework  | `@hermes/agent`              | 172   | Decide-never-execute; reasoners; sessions; delegation.                       |
-| Model Contracts  | `@hermes/model`              | 42    | Provider interfaces; zero dependencies.                                      |
-| Tool Framework   | `@hermes/tools`              | 175   | Self-describing tools; schemas; permissions; discovery.                      |
-| Filesystem Tools | `@hermes/tools-fs`           | 104   | Rooted, cancellable; port + Node + memory implementations.                   |
-| Shell Tools      | `@hermes/tools-shell`        | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.               |
-| HTTP Tools       | `@hermes/tools-http`         | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.                |
-| Git Tools        | `@hermes/tools-git`          | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.             |
-| GitHub           | `@hermes/tools-github`       | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.        |
-| Browser          | `@hermes/tools-browser`      | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms. |
-| Embedding        | `@hermes/embedding`          | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.  |
-| Model Router     | `@hermes/model-router`       | 44    | Capability selection + retryable-fallback across providers; scriptable fake. |
-| OpenAI Provider  | `@hermes/provider-openai`    | 45    | Chat/tools + embeddings over OpenAI wire; Azure/Ollama/vLLM-compatible.      |
-| Anthropic        | `@hermes/provider-anthropic` | 35    | Messages API chat/tools; system-hoist + block bridge; 529→retryable.         |
-| Gemini           | `@hermes/provider-google`    | 24    | `generateContent` chat/tools; user/model + systemInstruction bridge.         |
-| Context Builder  | `@hermes/context`            | 23    | Goal → packed `ModelMessage[]` within a token budget; deterministic.         |
-| Provider Base    | `@hermes/provider-http`      | 22    | Shared transport + status→`ModelError` classification for every provider.    |
-| Scheduler        | `@hermes/scheduler`          | 31    | Cron/interval/once triggers; pure `nextRun`; coalescing `poll`.              |
-| Worker Runtime   | `@hermes/worker`             | 20    | Queue port + in-memory queue; claim/ack/retry/dead-letter; kernel `Clock`.   |
-| REST Layer       | `@hermes/rest`               | 40    | Plain-data request/response; router; middleware; Node adapter.               |
-| Metrics          | `@hermes/metrics`            | 19    | Counter/gauge/histogram with labels; Prometheus exposition; zero-dep.        |
-| Configuration    | `@hermes/config`             | 34    | Typed schema over the environment; all-errors-at-once; secret redaction.     |
-| Secrets          | `@hermes/secrets`            | 30    | Opaque `Secret` (leak-resistant); env/`NAME_FILE`/file/chain sources.        |
-| Health           | `@hermes/health`             | 13    | Liveness/readiness checks; per-check timeout via `Clock`; worst-of report.   |
-| Tracing          | `@hermes/tracing`            | 25    | Spans; W3C `traceparent` propagation; injected clock/ids; span exporter.     |
-| Observability    | `@hermes/logger`             | 18    | Structured leveled logs; JSON sinks; secret-safe fields; trace correlation.  |
-| Authentication   | `@hermes/auth`               | 25    | Principals; API-key/bearer credentials; constant-time compare; chain.        |
-| Authorization    | `@hermes/authz`              | 20    | Wildcard scopes; deny-override, default-deny policy engine over principals.  |
-| Plugin SDK       | `@hermes/plugin-sdk`         | 4     | Versioned manifest + `definePlugin` over the kernel `PluginContext`.         |
-| Plugin Loader    | `@hermes/plugin-loader`      | 18    | Enforces API-version compat; validates manifests; adapts to kernel plugins.  |
-| CLI              | `@hermes/cli`                | 22    | Schema-less arg parsing; command dispatch; injected IO; returns exit code.   |
-| Telegram         | `@hermes/telegram`           | 32    | Bot API client; command dispatch; webhook verify; fake server. 🔑 (live).    |
-| Load Testing     | `@hermes/loadtest`           | 14    | Deterministic harness: bounded concurrency, latency percentiles, throughput. |
+| Subsystem        | Package                      | Tests | Notes                                                                               |
+| ---------------- | ---------------------------- | ----- | ----------------------------------------------------------------------------------- |
+| Kernel           | `@hermes/kernel`             | 161   | Zero-dependency runtime: missions, tasks, scheduler, event bus.                     |
+| Memory           | `@hermes/memory`             | 304   | Postgres-backed; pgvector-ready; conversation/record/mission.                       |
+| Planner          | `@hermes/planner`            | 201   | Goal → validated plan → `MissionSpec`. Strategy chain, replanner.                   |
+| Execution Engine | `@hermes/execution`          | 197   | Runs plans; `$from` data flow; checkpoints; pause/resume.                           |
+| Agent Framework  | `@hermes/agent`              | 172   | Decide-never-execute; reasoners; sessions; delegation.                              |
+| Model Contracts  | `@hermes/model`              | 42    | Provider interfaces; zero dependencies.                                             |
+| Tool Framework   | `@hermes/tools`              | 175   | Self-describing tools; schemas; permissions; discovery.                             |
+| Filesystem Tools | `@hermes/tools-fs`           | 104   | Rooted, cancellable; port + Node + memory implementations.                          |
+| Shell Tools      | `@hermes/tools-shell`        | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.                      |
+| HTTP Tools       | `@hermes/tools-http`         | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.                       |
+| Git Tools        | `@hermes/tools-git`          | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.                    |
+| GitHub           | `@hermes/tools-github`       | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.               |
+| Browser          | `@hermes/tools-browser`      | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms.        |
+| Embedding        | `@hermes/embedding`          | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.         |
+| Model Router     | `@hermes/model-router`       | 44    | Capability selection + retryable-fallback across providers; scriptable fake.        |
+| OpenAI Provider  | `@hermes/provider-openai`    | 45    | Chat/tools + embeddings over OpenAI wire; Azure/Ollama/vLLM-compatible.             |
+| Anthropic        | `@hermes/provider-anthropic` | 35    | Messages API chat/tools; system-hoist + block bridge; 529→retryable.                |
+| Gemini           | `@hermes/provider-google`    | 24    | `generateContent` chat/tools; user/model + systemInstruction bridge.                |
+| Context Builder  | `@hermes/context`            | 23    | Goal → packed `ModelMessage[]` within a token budget; deterministic.                |
+| Provider Base    | `@hermes/provider-http`      | 22    | Shared transport + status→`ModelError` classification for every provider.           |
+| Scheduler        | `@hermes/scheduler`          | 31    | Cron/interval/once triggers; pure `nextRun`; coalescing `poll`.                     |
+| Worker Runtime   | `@hermes/worker`             | 20    | Queue port + in-memory queue; claim/ack/retry/dead-letter; kernel `Clock`.          |
+| REST Layer       | `@hermes/rest`               | 40    | Plain-data request/response; router; middleware; Node adapter.                      |
+| Metrics          | `@hermes/metrics`            | 19    | Counter/gauge/histogram with labels; Prometheus exposition; zero-dep.               |
+| Configuration    | `@hermes/config`             | 34    | Typed schema over the environment; all-errors-at-once; secret redaction.            |
+| Secrets          | `@hermes/secrets`            | 30    | Opaque `Secret` (leak-resistant); env/`NAME_FILE`/file/chain sources.               |
+| Health           | `@hermes/health`             | 13    | Liveness/readiness checks; per-check timeout via `Clock`; worst-of report.          |
+| Tracing          | `@hermes/tracing`            | 25    | Spans; W3C `traceparent` propagation; injected clock/ids; span exporter.            |
+| Observability    | `@hermes/logger`             | 18    | Structured leveled logs; JSON sinks; secret-safe fields; trace correlation.         |
+| Authentication   | `@hermes/auth`               | 25    | Principals; API-key/bearer credentials; constant-time compare; chain.               |
+| Authorization    | `@hermes/authz`              | 20    | Wildcard scopes; deny-override, default-deny policy engine over principals.         |
+| Plugin SDK       | `@hermes/plugin-sdk`         | 4     | Versioned manifest + `definePlugin` over the kernel `PluginContext`.                |
+| Plugin Loader    | `@hermes/plugin-loader`      | 18    | Enforces API-version compat; validates manifests; adapts to kernel plugins.         |
+| CLI              | `@hermes/cli`                | 22    | Schema-less arg parsing; command dispatch; injected IO; returns exit code.          |
+| Telegram         | `@hermes/telegram`           | 32    | Bot API client; command dispatch; webhook verify; fake server. 🔑 (live).           |
+| Load Testing     | `@hermes/loadtest`           | 14    | Deterministic harness: bounded concurrency, latency percentiles, throughput.        |
+| API service      | `@hermes/api` (`apps/api`)   | 12    | Composition root: config+logger+health+metrics+REST; `/livez`,`/readyz`,`/metrics`. |
 
-## Production tier — defined, not yet built
+## Production tier — complete (#36–41)
 
-The Production tier (#36–41) is scoped in
-[`docs/architecture/production-tier.md`](docs/architecture/production-tier.md):
-milestone number, package (most are repo-level artifacts, not packages),
-responsibilities, dependencies, and completion criteria for each. In short —
-**#36 Docker** (multi-stage image + Compose stack, config from the environment),
-**#37 CI/CD** (the local gate suite run on every PR; image build on a tag),
-**#38 Security Audit** (document each existing trust boundary → control →
-residual risk, plus `pnpm audit`), **#39 Load Testing** (`@hermes/loadtest`, a
-deterministic in-process harness over the REST app and worker), **#40
-Performance Optimization** (measured, behaviour-preserving changes found via
-#39), and **#41 Production Documentation** (deployment guide, config reference,
-ops runbook, credential list). They depend on the platform tier (#25–35) landing
-first.
+Scoped in
+[`docs/architecture/production-tier.md`](docs/architecture/production-tier.md)
+and recorded in [RFC-0036](docs/rfcs/RFC-0036-production.md) (#39 has its own
+RFC-0035):
+
+- **#36 Docker** — a two-stage `Dockerfile` (`pnpm deploy`-isolated runtime, no
+  secrets baked in, non-root, `/livez` `HEALTHCHECK`) plus an `app`-profile
+  service in `docker-compose.yml`, running the `apps/api` composition root.
+- **#37 CI/CD** — `.github/workflows/ci.yml` runs the full gate (lint,
+  typecheck, build, `test:coverage`) on every PR; `release.yml` builds/pushes
+  the image on a `v*` tag.
+- **#38 Security Audit** — `docs/security/audit.md`: 13 trust boundaries →
+  control → residual risk, plus the `pnpm audit` action.
+- **#39 Load Testing** — `@hermes/loadtest` (14 tests, RFC-0035).
+- **#40 Performance** — `docs/architecture/performance.md`: the measure-first
+  method and candidate hot paths (no fabricated numbers; the instrumentation
+  ships).
+- **#41 Production Documentation** — `docs/deployment/README.md`: build/run,
+  config reference, ops runbook, credential list.
+
+**Infra-gated (🔧):** the `docker build`/run, the CI workflow runs, and the
+`pnpm audit` result are authored and correct but need a Docker daemon / hosted
+runner / CI to _execute_ — the analogue of a credential-gated subsystem needing
+a key. None are code gaps.
 
 ## Simulated / awaiting live verification
 
