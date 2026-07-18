@@ -15,9 +15,10 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   underway**: scheduler (#21), worker (#22), and the REST layer (#24) are done;
   metrics (#33) lands the first observability piece.
 - **Remaining:** CLI (#25), Telegram (#23, gated), auth/authz (#26–27), plugin
-  SDK/loader (#28–29), config wiring/secrets (#30–31), and the rest of
-  observability — tracing, health, the aggregate view (#32/#34/#35). None are
-  blocked; each is buildable and testable against fakes.
+  SDK/loader (#28–29), secrets (#31), and the rest of observability — tracing,
+  health, the aggregate view (#32/#34/#35) — then the Production tier (#36–41,
+  scoped in `docs/architecture/production-tier.md`). Configuration (#30) is
+  done. None are blocked; each is buildable and testable against fakes.
 - **Tracked consolidation:** the cancellable-`sleep` helper is duplicated in
   `@hermes/embedding` and `@hermes/tools-github`; the worker now uses the
   kernel's `Clock` instead. Refactoring the other two would change their public
@@ -52,6 +53,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Worker Runtime   | `@hermes/worker`             | 20    | Queue port + in-memory queue; claim/ack/retry/dead-letter; kernel `Clock`.   |
 | REST Layer       | `@hermes/rest`               | 40    | Plain-data request/response; router; middleware; Node adapter.               |
 | Metrics          | `@hermes/metrics`            | 19    | Counter/gauge/histogram with labels; Prometheus exposition; zero-dep.        |
+| Configuration    | `@hermes/config`             | 34    | Typed schema over the environment; all-errors-at-once; secret redaction.     |
 
 ## Production tier — defined, not yet built
 
