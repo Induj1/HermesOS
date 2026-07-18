@@ -15,10 +15,10 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   underway**: scheduler (#21), worker (#22), and the REST layer (#24) are done;
   metrics (#33) lands the first observability piece.
 - **Remaining:** CLI (#25), Telegram (#23, gated), auth/authz (#26–27), plugin
-  SDK/loader (#28–29), and the rest of observability — tracing, health, the
-  aggregate view (#32/#34/#35) — then the Production tier (#36–41, scoped in
-  `docs/architecture/production-tier.md`). Configuration (#30) and Secrets (#31)
-  are done. None are blocked; each is buildable and testable against fakes.
+  SDK/loader (#28–29), and the rest of observability — tracing and the aggregate
+  view (#32/#34) — then the Production tier (#36–41, scoped in
+  `docs/architecture/production-tier.md`). Configuration (#30), Secrets (#31),
+  and Health (#35) are done. None are blocked; each is buildable against fakes.
 - **Tracked consolidation:** the cancellable-`sleep` helper is duplicated in
   `@hermes/embedding` and `@hermes/tools-github`; the worker now uses the
   kernel's `Clock` instead. Refactoring the other two would change their public
@@ -55,6 +55,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Metrics          | `@hermes/metrics`            | 19    | Counter/gauge/histogram with labels; Prometheus exposition; zero-dep.        |
 | Configuration    | `@hermes/config`             | 34    | Typed schema over the environment; all-errors-at-once; secret redaction.     |
 | Secrets          | `@hermes/secrets`            | 30    | Opaque `Secret` (leak-resistant); env/`NAME_FILE`/file/chain sources.        |
+| Health           | `@hermes/health`             | 13    | Liveness/readiness checks; per-check timeout via `Clock`; worst-of report.   |
 
 ## Production tier — defined, not yet built
 

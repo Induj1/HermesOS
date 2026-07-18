@@ -69,7 +69,7 @@ tested against a fake before a key exists — only _live_ verification needs one
 | 32  | Observability  | ⬜            |
 | 33  | Metrics        | ✅ (RFC-0023) |
 | 34  | Tracing        | ⬜            |
-| 35  | Health Checks  | ⬜            |
+| 35  | Health Checks  | ✅ (RFC-0026) |
 
 ## Production
 
