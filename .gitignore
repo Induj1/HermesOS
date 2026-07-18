@@ -100,3 +100,6 @@ hermes-data/
 .AppleDouble
 Thumbs.db
 desktop.ini
+
+# The Telegram agent's ingest docs folder.
+hermes-docs/

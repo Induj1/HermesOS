@@ -18,6 +18,7 @@ export {
   type NewMemory,
   type ScoredItem,
 } from './memory-store.js';
+export { DOCS_SUBJECT, chunkText, ingestDocs, type Doc } from './rag.js';
 export { toolExecutor, type ExecutorDeps } from './executor.js';
 export {
   AGENT_NAME,

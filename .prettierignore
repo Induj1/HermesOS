@@ -18,3 +18,4 @@ docker-compose.yml
 # Not Prettier's languages.
 *.sql
 Justfile
+hermes-docs/

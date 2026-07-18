@@ -20,6 +20,8 @@ export interface BotDeps {
   readonly logger?: Logger;
   /** Record a message for later recall, scoped to this chat. Best-effort. */
   readonly remember?: (subject: string, text: string) => Promise<unknown>;
+  /** Ingest the docs folder into memory; returns a human-readable summary. */
+  readonly onIngest?: () => Promise<string>;
 }
 
 /** The slice of `TelegramBot` this module needs — the two registration methods. */
@@ -69,9 +71,22 @@ export function registerHandlers<TBot extends CommandBot>(
   bot.command('start', (ctx) =>
     ctx.reply(
       'Hi! I am Hermes. Send me a task — for example, ' +
-        '"summarise notes.md" or "fetch https://example.com and tell me the title".',
+        '"summarise notes.md" or "fetch https://example.com and tell me the title". ' +
+        'Drop files in the docs folder and send /ingest to chat with them.',
     ),
   );
+  if (deps.onIngest !== undefined) {
+    const onIngest = deps.onIngest;
+    bot.command('ingest', async (ctx) => {
+      await ctx.reply('Ingesting documents…');
+      try {
+        await ctx.reply(await onIngest());
+      } catch (thrown) {
+        deps.logger?.error('ingest failed', { error: (thrown as Error).message });
+        await ctx.reply('Ingest failed. Check the docs folder and try again.');
+      }
+    });
+  }
   bot.onText((ctx) => handleMessage(ctx, deps));
   return bot;
 }

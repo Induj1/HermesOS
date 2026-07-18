@@ -145,7 +145,17 @@ export class MemoryStore {
     text: string,
     options: RecallOptions = {},
   ): Promise<readonly ScoredItem[]> {
-    const scoped = this.#items.filter((item) => item.subject === subject);
+    return this.recallMany([subject], text, options);
+  }
+
+  /** The most similar items across several subjects (e.g. a chat + shared docs). */
+  async recallMany(
+    subjects: readonly string[],
+    text: string,
+    options: RecallOptions = {},
+  ): Promise<readonly ScoredItem[]> {
+    const wanted = new Set(subjects);
+    const scoped = this.#items.filter((item) => wanted.has(item.subject));
     if (scoped.length === 0 || text.trim() === '') return [];
 
     const [query] = await this.#embed([text]);
@@ -174,15 +184,22 @@ export class MemoryStore {
       .slice(0, limit);
   }
 
-  /** A read-only adapter to hand to the agent runtime (matches its MemoryAdapter). */
-  asMemoryAdapter(): {
+  /**
+   * A read-only adapter to hand to the agent runtime (matches its MemoryAdapter).
+   * `sharedSubjects` are always searched alongside the request's own subject —
+   * used to fold ingested document chunks (the DOCS subject) into recall.
+   */
+  asMemoryAdapter(sharedSubjects: readonly string[] = []): {
     recall: (
       subject: string,
       text: string,
       options?: RecallOptions,
     ) => Promise<readonly ScoredItem[]>;
   } {
-    return { recall: (subject, text, options) => this.recall(subject, text, options) };
+    return {
+      recall: (subject, text, options) =>
+        this.recallMany([subject, ...sharedSubjects], text, options),
+    };
   }
 
   async #persist(): Promise<void> {

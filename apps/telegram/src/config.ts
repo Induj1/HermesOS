@@ -137,6 +137,14 @@ export const telegramSchema = {
     .describe('Directory for the bot’s persistent data.'),
 
   /**
+   * Folder whose files are ingested for "chat with my files" on `/ingest`.
+   * `DOCS_DIR`. Drop .md/.txt/.json/code files here, then send /ingest.
+   */
+  docsDir: string()
+    .default('./hermes-docs')
+    .describe('Folder of documents ingested for RAG.'),
+
+  /**
    * How many memories to recall into the prompt each turn. `MEMORY_RECALL`.
    * 0 disables memory. Each recall costs one embedding call.
    */

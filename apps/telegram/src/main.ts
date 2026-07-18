@@ -7,6 +7,7 @@
  * for that reason — it is exercised by running the bot).
  */
 
+import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { loadConfigFromEnv } from '@hermes/config';
@@ -23,6 +24,7 @@ import { registerHandlers } from './bot.js';
 import { telegramSchema } from './config.js';
 import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
+import { DOCS_SUBJECT, ingestDocs } from './rag.js';
 import { buildTools } from './tools.js';
 import { lenientWorkspaceFs } from './workspace-fs.js';
 
@@ -101,9 +103,28 @@ export async function main(): Promise<void> {
     maxTurns: config.maxTurns,
     logger,
     clock: systemClock,
-    memory: memory.asMemoryAdapter() as unknown as MemoryAdapter,
+    // Recall the chat's own memories plus any ingested documents.
+    memory: memory.asMemoryAdapter([DOCS_SUBJECT]) as unknown as MemoryAdapter,
     recall: config.memoryRecall,
   });
+
+  // /ingest reads the docs folder, chunks + embeds each file into memory.
+  const docsDir = path.resolve(config.docsDir);
+  const onIngest = async (): Promise<string> => {
+    await fsp.mkdir(docsDir, { recursive: true });
+    const names = await fsp.readdir(docsDir);
+    const docs: { name: string; content: string }[] = [];
+    for (const name of names) {
+      const full = path.join(docsDir, name);
+      if ((await fsp.stat(full)).isFile()) {
+        docs.push({ name, content: await fsp.readFile(full, 'utf8') });
+      }
+    }
+    if (docs.length === 0)
+      return `No files found in ${config.docsDir}. Add some and /ingest again.`;
+    const chunks = await ingestDocs(memory, docs);
+    return `Ingested ${String(docs.length)} file(s) into ${String(chunks)} chunks. Ask me about them!`;
+  };
 
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
@@ -120,6 +141,7 @@ export async function main(): Promise<void> {
     logger,
     remember: (subject, text) =>
       memory.remember({ subject, kind: 'episode', content: text }),
+    onIngest,
   });
 
   const controller = new AbortController();
