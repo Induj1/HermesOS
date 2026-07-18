@@ -1,9 +1,9 @@
 {
-  "name": "@hermes/telegram",
+  "name": "@hermes/telegram-app",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Telegram adapter — bridges chat messages to the kernel.",
+  "description": "A Telegram bot that drives a HermesOS task-executing agent, backed by a local Ollama model.",
   "license": "MIT",
   "exports": {
     ".": {
@@ -13,6 +13,9 @@
   },
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
+  "bin": {
+    "hermes-telegram": "./dist/main.js"
+  },
   "files": [
     "dist"
   ],
@@ -20,13 +23,32 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node --watch src/index.ts",
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "dev": "node --watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@hermes/agent": "workspace:*",
+    "@hermes/config": "workspace:*",
+    "@hermes/kernel": "workspace:*",
+    "@hermes/logger": "workspace:*",
+    "@hermes/model": "workspace:*",
+    "@hermes/provider-openai": "workspace:*",
+    "@hermes/telegram": "workspace:*",
+    "@hermes/tools": "workspace:*",
+    "@hermes/tools-fs": "workspace:*",
+    "@hermes/tools-http": "workspace:*",
+    "@hermes/tools-shell": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "@vitest/coverage-v8": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

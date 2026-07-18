@@ -1,8 +1,23 @@
 /**
- * @hermes/telegram — Telegram adapter — bridges chat messages to the kernel.
+ * @hermes/telegram-app — a Telegram bot that drives a HermesOS task-executing
+ * agent backed by a local Ollama model.
  *
- * Scaffold only: this package has no implementation yet. The export below
- * exists so the package has a valid entry point that builds and type-checks;
- * replace it with the real public surface.
+ * The pure, composable pieces live here; `main.ts` (the `hermes-telegram` bin)
+ * wires them to config, real ports, and the long-poll loop.
  */
-export const PACKAGE_NAME = '@hermes/telegram';
+
+export { telegramSchema, type TelegramConfig } from './config.js';
+export { buildTools, type ToolDeps } from './tools.js';
+export { toolExecutor, type ExecutorDeps } from './executor.js';
+export {
+  AGENT_NAME,
+  buildAgentRuntime,
+  replyText,
+  type AgentRuntimeDeps,
+} from './agent.js';
+export {
+  handleMessage,
+  registerHandlers,
+  type BotDeps,
+  type CommandBot,
+} from './bot.js';

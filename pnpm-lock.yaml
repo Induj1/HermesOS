@@ -86,13 +86,53 @@ importers:
         version: 3.2.7(@types/node@22.20.1)(yaml@2.9.0)
 
   apps/telegram:
+    dependencies:
+      '@hermes/agent':
+        specifier: workspace:*
+        version: link:../../services/agent
+      '@hermes/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@hermes/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
+      '@hermes/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@hermes/model':
+        specifier: workspace:*
+        version: link:../../packages/model
+      '@hermes/provider-openai':
+        specifier: workspace:*
+        version: link:../../packages/provider-openai
+      '@hermes/telegram':
+        specifier: workspace:*
+        version: link:../../packages/telegram
+      '@hermes/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
+      '@hermes/tools-fs':
+        specifier: workspace:*
+        version: link:../../packages/tools-fs
+      '@hermes/tools-http':
+        specifier: workspace:*
+        version: link:../../packages/tools-http
+      '@hermes/tools-shell':
+        specifier: workspace:*
+        version: link:../../packages/tools-shell
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 3.2.7(vitest@3.2.7(@types/node@22.20.1)(yaml@2.9.0))
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(yaml@2.9.0)
 
   packages/auth:
     devDependencies:
