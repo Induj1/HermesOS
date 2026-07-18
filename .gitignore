@@ -83,6 +83,10 @@ tmp/
 *.swp
 *.swo
 
+# Claude Code local settings — may hold secrets (e.g. bot tokens) and
+# machine-specific permission rules. Never commit.
+.claude/settings.local.json
+
 # ---------------------------------------------------------------------------
 # OS
 # ---------------------------------------------------------------------------
