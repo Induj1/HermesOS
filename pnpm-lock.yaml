@@ -166,13 +166,23 @@ importers:
         version: 3.2.7(@types/node@22.20.1)(yaml@2.9.0)
 
   packages/logger:
+    dependencies:
+      '@hermes/kernel':
+        specifier: workspace:*
+        version: link:../kernel
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 3.2.7(vitest@3.2.7(@types/node@22.20.1)(yaml@2.9.0))
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(yaml@2.9.0)
 
   packages/metrics:
     devDependencies:

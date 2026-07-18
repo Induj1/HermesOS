@@ -14,12 +14,12 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
   high-fidelity fakes, with only live API calls left. **The runtime tier is
   underway**: scheduler (#21), worker (#22), and the REST layer (#24) are done;
   metrics (#33) lands the first observability piece.
-- **Remaining:** CLI (#25), Telegram (#23, gated), auth/authz (#26–27), plugin
-  SDK/loader (#28–29), and the aggregate Observability view (#32) — then the
-  Production tier (#36–41, scoped in `docs/architecture/production-tier.md`).
-  Configuration (#30), Secrets (#31), Tracing (#34), and Health (#35) are done;
-  metrics/tracing/health now cover the observability primitives. None are
-  blocked; each is buildable against fakes.
+- **Remaining:** CLI (#25), Telegram (#23, gated), auth/authz (#26–27), and
+  plugin SDK/loader (#28–29) — then the Production tier (#36–41, scoped in
+  `docs/architecture/production-tier.md`). The **observability tier is
+  complete**: metrics (#33), tracing (#34), health (#35), and structured logging
+  (#32), alongside configuration (#30) and secrets (#31). None are blocked; each
+  is buildable against fakes.
 - **Tracked consolidation:** the cancellable-`sleep` helper is duplicated in
   `@hermes/embedding` and `@hermes/tools-github`; the worker now uses the
   kernel's `Clock` instead. Refactoring the other two would change their public
@@ -58,6 +58,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Secrets          | `@hermes/secrets`            | 30    | Opaque `Secret` (leak-resistant); env/`NAME_FILE`/file/chain sources.        |
 | Health           | `@hermes/health`             | 13    | Liveness/readiness checks; per-check timeout via `Clock`; worst-of report.   |
 | Tracing          | `@hermes/tracing`            | 25    | Spans; W3C `traceparent` propagation; injected clock/ids; span exporter.     |
+| Observability    | `@hermes/logger`             | 18    | Structured leveled logs; JSON sinks; secret-safe fields; trace correlation.  |
 
 ## Production tier — defined, not yet built
 

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Structured logging used by every app and service.",
+  "description": "Structured, leveled logging with secret-safe JSON records and trace correlation.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -19,12 +19,20 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@hermes/kernel": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "@vitest/coverage-v8": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
