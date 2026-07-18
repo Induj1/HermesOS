@@ -17,12 +17,12 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 - **The entire Platform tier (#26–35) is complete:** auth (#26), authz (#27),
   plugin SDK (#28), plugin loader (#29), config (#30), secrets (#31),
   observability (#32), metrics (#33), tracing (#34), and health (#35).
-- **The interfaces tier is complete except the gated Telegram (#23):** REST
-  (#24) and CLI (#25) ship. **Remaining:** Telegram (#23, credential-gated) and
-  the Production tier (#36–41, scoped in
-  `docs/architecture/production-tier.md`). Neither is blocked on design;
-  Telegram is buildable against a fake bot API and needs only a bot token to
-  verify live.
+- **The interfaces tier is complete:** REST (#24), CLI (#25), and Telegram (#23,
+  built and tested against a fake — 🔑 a bot token for live). **Every
+  application subsystem (#1–35) now ships.** The only remaining roadmap section
+  is the **Production tier (#36–41)** — Docker, CI/CD, security audit, load
+  testing, performance, and production docs — scoped in
+  `docs/architecture/production-tier.md`.
 - **Tracked consolidation:** the cancellable-`sleep` helper is duplicated in
   `@hermes/embedding` and `@hermes/tools-github`; the worker now uses the
   kernel's `Clock` instead. Refactoring the other two would change their public
@@ -67,6 +67,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Plugin SDK       | `@hermes/plugin-sdk`         | 4     | Versioned manifest + `definePlugin` over the kernel `PluginContext`.         |
 | Plugin Loader    | `@hermes/plugin-loader`      | 18    | Enforces API-version compat; validates manifests; adapts to kernel plugins.  |
 | CLI              | `@hermes/cli`                | 22    | Schema-less arg parsing; command dispatch; injected IO; returns exit code.   |
+| Telegram         | `@hermes/telegram`           | 32    | Bot API client; command dispatch; webhook verify; fake server. 🔑 (live).    |
 
 ## Production tier — defined, not yet built
 
@@ -160,6 +161,17 @@ first.
   shared-classifier wiring (incl. the context-length override). What needs a
   live **`GEMINI_API_KEY`**: confirming the wire shape and a real round-trip.
   Chat/tools only; streaming unimplemented. See RFC-0019 §4.
+
+- **Telegram Interface** (`@hermes/telegram`) — the Bot API client, the
+  command/text dispatcher, the long-poll loop (clock-driven), and webhook
+  verification are **implemented and verified** against `FakeTelegramServer` (32
+  tests): `getMe`/`sendMessage`/`getUpdates` over the real envelope, offset
+  acknowledgement, error classification (bad token, transport failure,
+  non-JSON), and the constant-time webhook secret check. The client reuses the
+  shared `HttpClient`, and errors never include the token-bearing URL. What
+  needs a live **bot token**: a real `api.telegram.org` round-trip (wire shape,
+  error bodies) and a genuine signed webhook delivery. Not a code gap — supply a
+  `FetchHttpClient` and a token. See RFC-0034 §6.
 
 The remaining rows fill in as further credential-gated subsystems are built:
 each lists what is implemented, what is exercised against a fake, the exact
