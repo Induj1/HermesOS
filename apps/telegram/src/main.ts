@@ -17,10 +17,12 @@ import { NodeFileSystem, rooted } from '@hermes/tools-fs';
 import { FetchHttpClient, guarded } from '@hermes/tools-http';
 import { NodeShellExecutor, allowlisted } from '@hermes/tools-shell';
 import { TelegramBot, TelegramClient } from '@hermes/telegram';
+import type { MemoryAdapter } from '@hermes/agent';
 import { buildAgentRuntime } from './agent.js';
 import { registerHandlers } from './bot.js';
 import { telegramSchema } from './config.js';
 import { toolExecutor } from './executor.js';
+import { MemoryStore, type EmbedFn } from './memory-store.js';
 import { buildTools } from './tools.js';
 import { lenientWorkspaceFs } from './workspace-fs.js';
 
@@ -73,12 +75,34 @@ export async function main(): Promise<void> {
 
   const tools = buildTools({ fs, http, ...(shell === undefined ? {} : { shell }) });
   const executor = toolExecutor(tools, { logger });
+
+  // Persistent memory: embed text with Ollama's native /api/embed and store it
+  // under the data dir (outside the model-writable workspace).
+  const ollamaRoot = config.ollamaBaseUrl.replace(/\/v1\/?$/, '');
+  const embed: EmbedFn = async (texts) => {
+    const res = await fetch(`${ollamaRoot}/api/embed`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: config.embeddingModel, input: texts }),
+    });
+    if (!res.ok) throw new Error(`embed failed: ${String(res.status)}`);
+    const json = (await res.json()) as { embeddings?: readonly (readonly number[])[] };
+    return json.embeddings ?? [];
+  };
+  const memory = await MemoryStore.load({
+    embed,
+    filePath: path.resolve(config.dataDir, 'memory.json'),
+    clock: systemClock,
+  });
+
   const runtime = buildAgentRuntime({
     model,
     executor,
     maxTurns: config.maxTurns,
     logger,
     clock: systemClock,
+    memory: memory.asMemoryAdapter() as unknown as MemoryAdapter,
+    recall: config.memoryRecall,
   });
 
   // getMe doubles as a token check: a bad token rejects here, before we poll.
@@ -91,7 +115,12 @@ export async function main(): Promise<void> {
     client,
     ...(me.username === undefined ? {} : { username: me.username }),
   });
-  registerHandlers(bot, { runtime, logger });
+  registerHandlers(bot, {
+    runtime,
+    logger,
+    remember: (subject, text) =>
+      memory.remember({ subject, kind: 'episode', content: text }),
+  });
 
   const controller = new AbortController();
   const stop = (signal: string): void => {

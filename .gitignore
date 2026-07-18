@@ -90,6 +90,9 @@ tmp/
 # The Telegram agent's runtime workspace — files the bot writes at runtime.
 hermes-workspace/
 
+# The Telegram agent's persistent data (memory store).
+hermes-data/
+
 # ---------------------------------------------------------------------------
 # OS
 # ---------------------------------------------------------------------------

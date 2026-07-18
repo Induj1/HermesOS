@@ -18,6 +18,8 @@ export interface BotDeps {
   /** Which registered agent to run. Defaults to the assistant. */
   readonly agentName?: string;
   readonly logger?: Logger;
+  /** Record a message for later recall, scoped to this chat. Best-effort. */
+  readonly remember?: (subject: string, text: string) => Promise<unknown>;
 }
 
 /** The slice of `TelegramBot` this module needs — the two registration methods. */
@@ -34,14 +36,28 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
     return;
   }
 
+  // The chat id scopes memory: each chat recalls only its own history.
+  const subject = String(ctx.message.chat.id);
+
   try {
     const result = await deps.runtime.run(deps.agentName ?? AGENT_NAME, {
       input: text,
+      subject,
     });
     await ctx.reply(replyText(result));
   } catch (thrown) {
     deps.logger?.error('agent run failed', { error: (thrown as Error).message });
     await ctx.reply('Something went wrong while working on that. Please try again.');
+  }
+
+  // Remember the message after replying, so a slow or failed write never delays
+  // or breaks the answer.
+  if (deps.remember !== undefined) {
+    try {
+      await deps.remember(subject, text);
+    } catch (thrown) {
+      deps.logger?.warn('memory write failed', { error: (thrown as Error).message });
+    }
   }
 }
 

@@ -8,6 +8,7 @@ pnpm-lock.yaml
 
 # The Telegram agent's runtime workspace — files it writes, not source.
 hermes-workspace/
+hermes-data/
 
 # Prettier's YAML printer rewrites the anchors and merge keys in
 # docker-compose.yml, and its Markdown printer reflows the docs that were

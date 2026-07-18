@@ -123,6 +123,27 @@ export const telegramSchema = {
    */
   maxTurns: integer().default(12).describe('Max reasoning turns per message.'),
 
+  /** The Ollama embedding model for memory/RAG. `EMBEDDING_MODEL`. */
+  embeddingModel: string()
+    .default('all-minilm')
+    .describe('Ollama model used to embed memories and documents.'),
+
+  /**
+   * Where persistent data (the memory store) lives. `DATA_DIR`. Kept out of the
+   * agent's writable workspace so the model cannot tamper with its own memory.
+   */
+  dataDir: string()
+    .default('./hermes-data')
+    .describe('Directory for the bot’s persistent data.'),
+
+  /**
+   * How many memories to recall into the prompt each turn. `MEMORY_RECALL`.
+   * 0 disables memory. Each recall costs one embedding call.
+   */
+  memoryRecall: integer()
+    .default(5)
+    .describe('Memories recalled per message (0 = off).'),
+
   /** How often to poll Telegram for updates, in ms. `POLL_INTERVAL_MS`. */
   pollIntervalMs: integer().default(1_000).describe('Long-poll interval in ms.'),
 

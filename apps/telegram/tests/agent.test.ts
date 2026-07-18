@@ -1,4 +1,9 @@
-import type { AgentDecision, AgentResult, SessionOutcome } from '@hermes/agent';
+import type {
+  AgentDecision,
+  AgentResult,
+  MemoryAdapter,
+  SessionOutcome,
+} from '@hermes/agent';
 import { toSessionId } from '@hermes/agent';
 import { systemClock } from '@hermes/kernel';
 import { describe, expect, it } from 'vitest';
@@ -72,5 +77,25 @@ describe('buildAgentRuntime', () => {
     expect(replyText(outcome)).toBe('done: hi');
     // The first turn offered tools, because the model advertises tool support.
     expect(model.calls[0]?.withTools).toBe(true);
+  });
+
+  it('recalls memories for the subject when a memory adapter is given', async () => {
+    const seen: string[] = [];
+    const memory = {
+      recall: (subject: string, text: string) => {
+        seen.push(`${subject}:${text}`);
+        return Promise.resolve([]);
+      },
+    } as unknown as MemoryAdapter;
+
+    const runtime = buildAgentRuntime({
+      model: new ScriptedModel([answer('hi')]),
+      executor: toolExecutor([]),
+      memory,
+      recall: 3,
+    });
+
+    await runtime.run(AGENT_NAME, { input: 'what is my name?', subject: 'chat-1' });
+    expect(seen).toContain('chat-1:what is my name?');
   });
 });

@@ -9,6 +9,15 @@
 export { telegramSchema, type TelegramConfig } from './config.js';
 export { buildTools, type ToolDeps } from './tools.js';
 export { lenientWorkspaceFs } from './workspace-fs.js';
+export {
+  MemoryStore,
+  cosineSimilarity,
+  type EmbedFn,
+  type MemoryItem,
+  type MemoryKind,
+  type NewMemory,
+  type ScoredItem,
+} from './memory-store.js';
 export { toolExecutor, type ExecutorDeps } from './executor.js';
 export {
   AGENT_NAME,

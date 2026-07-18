@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildAgentRuntime } from '../src/agent.js';
 import { handleMessage, registerHandlers, type CommandBot } from '../src/bot.js';
 import { toolExecutor } from '../src/executor.js';
-import { answer, BrokenModel, ScriptedModel } from './helpers.js';
+import { answer, BrokenModel, ScriptedModel, spyLogger } from './helpers.js';
 
 /** A message context that records what was replied. */
 function fakeContext(text: string): { ctx: MessageContext; replies: string[] } {
@@ -12,6 +12,7 @@ function fakeContext(text: string): { ctx: MessageContext; replies: string[] } {
     text,
     command: undefined,
     args: [],
+    message: { chat: { id: 42 } },
     reply: (message: string) => {
       replies.push(message);
       return Promise.resolve(undefined);
@@ -48,9 +49,34 @@ describe('handleMessage', () => {
       executor: toolExecutor([]),
     });
 
-    await handleMessage(ctx, { runtime });
+    await handleMessage(ctx, { runtime, logger: spyLogger() });
 
     expect(replies[0]).toMatch(/something went wrong/i);
+  });
+
+  it('records the message via the remember hook, scoped by chat id', async () => {
+    const { ctx } = fakeContext('remember this');
+    const seen: { subject: string; text: string }[] = [];
+    await handleMessage(ctx, {
+      runtime: runtimeWith('ok'),
+      remember: (subject, text) => {
+        seen.push({ subject, text });
+        return Promise.resolve();
+      },
+    });
+    expect(seen).toEqual([{ subject: '42', text: 'remember this' }]);
+  });
+
+  it('does not break when the remember hook throws', async () => {
+    const { ctx, replies } = fakeContext('hello');
+    const logger = spyLogger();
+    await handleMessage(ctx, {
+      runtime: runtimeWith('hi'),
+      remember: () => Promise.reject(new Error('disk full')),
+      logger,
+    });
+    expect(replies).toEqual(['hi']); // the reply still went out
+    expect(logger.warns).toContain('memory write failed');
   });
 });
 

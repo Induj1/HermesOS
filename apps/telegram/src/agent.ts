@@ -6,7 +6,7 @@
  */
 
 import { AgentRuntime, defineAgent, LlmReasoner } from '@hermes/agent';
-import type { AgentExecutor, AgentResult } from '@hermes/agent';
+import type { AgentExecutor, AgentResult, MemoryAdapter } from '@hermes/agent';
 import type { Clock, Logger } from '@hermes/kernel';
 import type { ChatModel, ToolCallingModel } from '@hermes/model';
 
@@ -39,16 +39,22 @@ export interface AgentRuntimeDeps {
   readonly maxTurns?: number;
   readonly logger?: Logger;
   readonly clock?: Clock;
+  /** When set, the agent recalls relevant memories for the request's subject. */
+  readonly memory?: MemoryAdapter;
+  /** How many memories to recall per turn. Ignored unless `memory` is set. */
+  readonly recall?: number;
 }
 
 /** Build a single-agent runtime: an LLM reasoner over the given model, with the
- *  given executor closing the tool loop. */
+ *  given executor closing the tool loop, and optional memory recall. */
 export function buildAgentRuntime(deps: AgentRuntimeDeps): AgentRuntime {
+  const recall = deps.memory === undefined ? 0 : (deps.recall ?? 5);
   return new AgentRuntime({
     executor: deps.executor,
     maxTurns: deps.maxTurns ?? 6,
     ...(deps.logger === undefined ? {} : { logger: deps.logger }),
     ...(deps.clock === undefined ? {} : { clock: deps.clock }),
+    ...(deps.memory === undefined ? {} : { memory: deps.memory }),
     agents: [
       defineAgent({
         name: AGENT_NAME,
@@ -58,6 +64,7 @@ export function buildAgentRuntime(deps: AgentRuntimeDeps): AgentRuntime {
         reasoner: new LlmReasoner({
           model: deps.model,
           systemPrompt: () => SYSTEM_PROMPT,
+          recall,
         }),
       }),
     ],
