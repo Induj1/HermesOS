@@ -12,6 +12,7 @@ import type { AgentRuntime } from '@hermes/agent';
 import type { Logger } from '@hermes/kernel';
 import type { Handler, MessageContext } from '@hermes/telegram';
 import { AGENT_NAME, replyText } from './agent.js';
+import { largestPhoto, visionPrompt, type PhotoSize } from './vision.js';
 
 export interface BotDeps {
   readonly runtime: AgentRuntime;
@@ -22,6 +23,17 @@ export interface BotDeps {
   readonly remember?: (subject: string, text: string) => Promise<unknown>;
   /** Ingest the docs folder into memory; returns a human-readable summary. */
   readonly onIngest?: () => Promise<string>;
+  /** Describe a photo (by Telegram file id) with a vision model. */
+  readonly onPhoto?: (
+    fileId: string,
+    prompt: string,
+    subject: string,
+  ) => Promise<string>;
+}
+
+/** Photo + caption off the raw update — fields @hermes/telegram does not type. */
+function photoOf(message: unknown): { photo?: readonly PhotoSize[]; caption?: string } {
+  return message as { photo?: readonly PhotoSize[]; caption?: string };
 }
 
 /** The slice of `TelegramBot` this module needs — the two registration methods. */
@@ -32,14 +44,30 @@ export interface CommandBot {
 
 /** Run one message through the agent and reply with the outcome. */
 export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise<void> {
+  // The chat id scopes memory: each chat recalls only its own history.
+  const subject = String(ctx.message.chat.id);
+
+  // A photo message: describe it with the vision model instead of the agent.
+  const { photo, caption } = photoOf(ctx.message);
+  const largest = largestPhoto(photo);
+  if (largest !== undefined && deps.onPhoto !== undefined) {
+    await ctx.reply('Looking at your image…');
+    try {
+      await ctx.reply(
+        await deps.onPhoto(largest.file_id, visionPrompt(caption ?? ''), subject),
+      );
+    } catch (thrown) {
+      deps.logger?.error('vision failed', { error: (thrown as Error).message });
+      await ctx.reply('I could not process that image.');
+    }
+    return;
+  }
+
   const text = ctx.text.trim();
   if (text === '') {
     await ctx.reply('Send me a task in text and I will work on it.');
     return;
   }
-
-  // The chat id scopes memory: each chat recalls only its own history.
-  const subject = String(ctx.message.chat.id);
 
   try {
     const result = await deps.runtime.run(deps.agentName ?? AGENT_NAME, {

@@ -130,6 +130,14 @@ export const telegramSchema = {
     .describe('Ollama model used to embed memories and documents.'),
 
   /**
+   * Ollama vision model for photo messages. `VISION_MODEL`. Empty disables image
+   * input. Must be a multimodal model (e.g. llava:7b, llama3.2-vision).
+   */
+  visionModel: string()
+    .default('llava:7b')
+    .describe('Ollama vision model (empty = off).'),
+
+  /**
    * Where persistent data (the memory store) lives. `DATA_DIR`. Kept out of the
    * agent's writable workspace so the model cannot tamper with its own memory.
    */

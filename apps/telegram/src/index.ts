@@ -35,6 +35,7 @@ export {
   type Specialist,
   type TeamRuntimeDeps,
 } from './team.js';
+export { largestPhoto, visionPrompt, type PhotoSize } from './vision.js';
 export { toolExecutor, type ExecutorDeps } from './executor.js';
 export {
   AGENT_NAME,

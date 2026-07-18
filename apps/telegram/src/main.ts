@@ -132,6 +132,33 @@ export async function main(): Promise<void> {
     return `Ingested ${String(docs.length)} file(s) into ${String(chunks)} chunks. Ask me about them!`;
   };
 
+  // A photo: download it via the raw Telegram Bot API and describe it with the
+  // Ollama vision model (bypassing @hermes/model, which is text-only).
+  const token = config.telegramBotToken;
+  const onPhoto = async (fileId: string, prompt: string): Promise<string> => {
+    const meta = (await (
+      await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`)
+    ).json()) as { result?: { file_path?: string } };
+    const filePath = meta.result?.file_path;
+    if (filePath === undefined) throw new Error('Telegram getFile returned no path');
+    const bytes = await (
+      await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`)
+    ).arrayBuffer();
+    const image = Buffer.from(bytes).toString('base64');
+    const res = await fetch(`${ollamaRoot}/api/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: config.visionModel,
+        stream: false,
+        messages: [{ role: 'user', content: prompt, images: [image] }],
+      }),
+    });
+    if (!res.ok) throw new Error(`vision request failed: ${String(res.status)}`);
+    const json = (await res.json()) as { message?: { content?: string } };
+    return json.message?.content ?? '(the vision model returned nothing)';
+  };
+
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
     token: config.telegramBotToken,
@@ -148,6 +175,7 @@ export async function main(): Promise<void> {
     remember: (subject, text) =>
       memory.remember({ subject, kind: 'episode', content: text }),
     onIngest,
+    ...(config.visionModel === '' ? {} : { onPhoto }),
   });
 
   const controller = new AbortController();
