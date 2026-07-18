@@ -5,30 +5,42 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 
 ## At a glance
 
-- **The entire roadmap is complete — all 41 items (#1–41).** Every subsystem
-  ships with an RFC, a README, and enforced ≥95% branch coverage; the Production
-  tier (#36–41) is built, with the composition-root API service (`apps/api`)
-  wiring the platform together.
-- **2462 tests** pass repo-wide (34 packages + 4 services). Lint, typecheck,
-  build, format, and coverage thresholds are all clean.
-- **Every tier is done:** foundations (#1–7), tools (#8–13), models (#14–20),
-  runtime & interfaces (#21–25), platform (#26–35), and production (#36–41).
-- **Credential/infra-gated verification is all that remains** — code-complete,
+- **40 of the 41 roadmap items are built.** The one open item is the **dedicated
+  Ollama-native provider (#16)**, marked 🔜 in ROADMAP and deferred: Ollama is
+  already usable today through `@hermes/provider-openai` pointed at its
+  OpenAI-compatible `/v1` endpoint, and a native provider needs a local Ollama
+  server to verify. Every built subsystem has an RFC and enforced ≥95% branch
+  coverage; the Production tier (#36–41) is built, with the composition-root API
+  service (`apps/api`) wiring the platform together.
+- **2465 tests** pass repo-wide (33 packages + 2 apps + 4 services). Lint,
+  typecheck, build, format, and coverage thresholds are all clean.
+- **Every tier is built** (bar Ollama #16 above): foundations (#1–7), tools
+  (#8–13), models (#14–20), runtime & interfaces (#21–25), platform (#26–35),
+  and production (#36–41).
+- **Credential/infra-gated verification is what remains** — code-complete,
   fake-verified subsystems whose _live_ confirmation needs an external key or
-  runtime: the four model providers, git remote, GitHub, browser, Telegram, and
-  Postgres (all in "Simulated / awaiting live verification"), plus the three
-  Production steps that need infrastructure to _execute_ — the
-  `docker build`/run (#36), the CI/CD workflow runs (#37), and the `pnpm audit`
-  result (#38) — none are code gaps.
-- **Tracked near-duplications (deliberate, below rule-of-three):** the
-  cancellable-`sleep` helper in `@hermes/embedding` and `@hermes/tools-github`
-  (the worker uses the kernel `Clock` instead; refactoring the other two would
-  change their public `sleep` option); and a 6-line pure-JS `constantTimeEqual`
-  in `@hermes/auth` and `@hermes/telegram` (`@hermes/tools-github` uses the
-  stronger `crypto.timingSafeEqual` for HMAC — a distinct primitive, not a third
-  copy). Extraction is deferred: it would either couple an interface package to
-  a security package or cost `@hermes/auth` its documented zero-dependency
-  property, for marginal gain. Both are recorded, not forgotten.
+  runtime: the three model providers (OpenAI, Anthropic, Gemini), git remote,
+  GitHub, browser, Telegram, and Postgres (all in "Simulated / awaiting live
+  verification"), plus the three Production steps that need infrastructure to
+  _execute_ — the `docker build`/run (#36), the CI/CD workflow runs (#37), and
+  the `pnpm audit` result (#38). See `LIVE_VERIFICATION.md`. None are code gaps.
+- **Tracked near-duplications (deliberate, documented — not refactored):** each
+  cluster below is small, correct, and locally tested; consolidating would
+  couple packages (several are foundational and zero-dependency, e.g.
+  `@hermes/kernel` and `@hermes/model`, which cannot depend on a shared package)
+  for marginal DRY gain, so they are recorded rather than merged (the same
+  judgment RFC-0010 §7 and the sleep note already apply):
+  - `toError(thrown)` — 8 per-package public copies (tools, embedding, model,
+    kernel, memory, planner, agent, execution). Kernel's uses a circular-safe
+    stringify; the others use `String(thrown)` (identical for Error/string
+    throws; differs only in the message for a non-Error object).
+  - `messageOf(error)` — 3 private copies (tracing, health, telegram) plus
+    inlined uses elsewhere.
+  - The cancellable-`sleep` helper (`@hermes/embedding`,
+    `@hermes/tools-github`); a 6-line pure-JS `constantTimeEqual`
+    (`@hermes/auth`, `@hermes/telegram`; `@hermes/tools-github` uses
+    `crypto.timingSafeEqual` for HMAC — a distinct primitive); a `retry-after`
+    parser and a case-insensitive header lookup (2 copies each).
 
 ## Complete
 
@@ -44,7 +56,7 @@ Updated after each subsystem. For the ordered plan, see ROADMAP.md.
 | Filesystem Tools | `@hermes/tools-fs`           | 104   | Rooted, cancellable; port + Node + memory implementations.                          |
 | Shell Tools      | `@hermes/tools-shell`        | 46    | Argv-not-shell; allowlist; timeout/output caps; env isolation.                      |
 | HTTP Tools       | `@hermes/tools-http`         | 92    | SSRF policy (pure); redirect re-checking; streaming size cap.                       |
-| Git Tools        | `@hermes/tools-git`          | 106   | Shell-executor reuse; structured porcelain reads; 3-grade perms.                    |
+| Git Tools        | `@hermes/tools-git`          | 109   | Shell-executor reuse; structured reads; 3-grade perms; clone-URL transport guard.   |
 | GitHub           | `@hermes/tools-github`       | 98    | REST+GraphQL over injected transport; auth/App/webhooks; fake server.               |
 | Browser          | `@hermes/tools-browser`      | 99    | Playwright-shaped port; HTTP-backed fake browser; DOM engine; 3-grade perms.        |
 | Embedding        | `@hermes/embedding`          | 108   | Provider-independent platform: batching, retries, concurrency, cost; fakes.         |

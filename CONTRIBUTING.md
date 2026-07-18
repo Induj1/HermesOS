@@ -76,8 +76,8 @@ Run `just` at any time to list every available recipe. If setup fails,
 2. **Branch from `main`.** Name it `<type>/<short-description>`, e.g.
    `feat/kernel-scheduler` or `fix/redis-reconnect`.
 3. **Make your change**, with tests.
-4. **Run `just check`** — a superset of CI: everything CI gates on (lint,
-   formatting, typecheck) plus the build and tests.
+4. **Run `just check`** — the same gate CI runs: lint, formatting, typecheck,
+   the build, and the tests.
 5. **Open a pull request** against `main`.
 
 Everyday recipes:
