@@ -40,11 +40,12 @@ The API service reads these from the environment (declared in
 default). See the source of truth — `describeSchema(apiSchema)` — for the live
 list.
 
-| Variable       | Type                             | Default      | Meaning                        |
-| -------------- | -------------------------------- | ------------ | ------------------------------ |
-| `PORT`         | port (1–65535)                   | `3000`       | TCP port to listen on          |
-| `LOG_LEVEL`    | `debug`\|`info`\|`warn`\|`error` | `info`       | Minimum log level emitted      |
-| `SERVICE_NAME` | string                           | `hermes-api` | Name stamped on every log line |
+| Variable       | Type                             | Default      | Meaning                                              |
+| -------------- | -------------------------------- | ------------ | ---------------------------------------------------- |
+| `PORT`         | port (1–65535)                   | `3000`       | TCP port to listen on                                |
+| `HOST`         | string                           | `0.0.0.0`    | Interface to bind; set `127.0.0.1` for loopback only |
+| `LOG_LEVEL`    | `debug`\|`info`\|`warn`\|`error` | `info`       | Minimum log level emitted                            |
+| `SERVICE_NAME` | string                           | `hermes-api` | Name stamped on every log line                       |
 
 Invalid configuration fails fast at startup with a `ConfigError` that lists
 **every** problem at once (a bad port and a bad level are reported together),

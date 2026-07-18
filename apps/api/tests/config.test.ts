@@ -13,6 +13,7 @@ describe('apiSchema', () => {
     if (result.ok) {
       expect(result.value).toEqual({
         port: 3000,
+        host: '0.0.0.0',
         logLevel: 'info',
         serviceName: 'hermes-api',
       });
@@ -22,12 +23,14 @@ describe('apiSchema', () => {
   it('reads overrides from the environment', () => {
     const result = loadConfig(apiSchema, {
       PORT: '8080',
+      HOST: '127.0.0.1',
       LOG_LEVEL: 'debug',
       SERVICE_NAME: 'custom',
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.port).toBe(8080);
+      expect(result.value.host).toBe('127.0.0.1');
       expect(result.value.logLevel).toBe('debug');
       expect(result.value.serviceName).toBe('custom');
     }

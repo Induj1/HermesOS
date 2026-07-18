@@ -40,8 +40,8 @@ export function main(): void {
   });
 
   const server = createServer(toNodeListener(app));
-  server.listen(config.port, () => {
-    logger.info('listening', { port: config.port });
+  server.listen(config.port, config.host, () => {
+    logger.info('listening', { host: config.host, port: config.port });
   });
 
   // Graceful shutdown: stop accepting connections, let in-flight requests drain,

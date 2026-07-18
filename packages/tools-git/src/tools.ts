@@ -22,7 +22,7 @@
 import { defineTool, s, type HermesTool } from '@hermes/tools';
 import type { ToolContext } from '@hermes/kernel';
 import type { GitExecutor, GitResult } from './executor.js';
-import { classifyGitFailure, GitError } from './errors.js';
+import { assertCloneUrlSafe, classifyGitFailure, GitError } from './errors.js';
 import { LOG_FORMAT, parseBranches, parseLog, parseStatus } from './parse.js';
 
 export interface GitToolsOptions {
@@ -459,9 +459,12 @@ export function gitTools(
       },
     ],
     // `--` before the positional arguments so a URL or directory beginning with a
-    // dash cannot be read as a git option.
-    execute: async ({ url, directory }, ctx) =>
-      passthrough(await git('clone', ['clone', '--', url, directory], ctx)),
+    // dash cannot be read as a git option; and reject remote-helper transport
+    // URLs (`ext::…`) that git would execute as a command.
+    execute: async ({ url, directory }, ctx) => {
+      assertCloneUrlSafe(url);
+      return passthrough(await git('clone', ['clone', '--', url, directory], ctx));
+    },
   });
 
   const fetch = defineTool({

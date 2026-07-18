@@ -51,7 +51,7 @@ export type {
   FakeGitExecutorOptions,
 } from './fake-executor.js';
 
-export { classifyGitFailure } from './errors.js';
+export { assertCloneUrlSafe, classifyGitFailure } from './errors.js';
 export type { GitErrorCode } from './errors.js';
 
 export { parseStatus, parseLog, parseBranches, LOG_FORMAT } from './parse.js';

@@ -20,6 +20,7 @@ export type GitErrorCode =
   | 'NOT_INSTALLED'
   | 'NOT_A_REPOSITORY'
   | 'PATH_ESCAPE'
+  | 'UNSAFE_URL'
   | 'MERGE_CONFLICT'
   | 'AUTH_FAILED'
   | 'REMOTE_ERROR'
@@ -103,4 +104,30 @@ export function classifyGitFailure(
 
 function firstLine(text: string): string {
   return text.split('\n')[0]?.trim() ?? '';
+}
+
+// A git "remote helper" URL has the form `<transport>::<address>`, and some
+// transports run a command: `ext::sh -c '…'` and `fd::` hand git an arbitrary
+// program to execute. That turns a clone URL into code execution.
+const REMOTE_HELPER = /^[a-z][a-z0-9+.-]*::/i;
+
+/**
+ * Reject a clone URL that would trigger a git remote-helper transport (the
+ * `<transport>::<address>` form, e.g. `ext::sh -c '…'`). Normal URLs —
+ * `https://`, `git://`, `ssh://`, `file://`, and the scp-like `user@host:path` —
+ * all pass; only the `::` transport form and an empty URL are refused. This is
+ * defense in depth: the tool is already gated behind `git:network`, but a
+ * model-produced URL should never be able to run a command.
+ */
+export function assertCloneUrlSafe(url: string): void {
+  const trimmed = url.trim();
+  if (trimmed === '') {
+    throw new GitError('UNSAFE_URL', 'a clone URL must not be empty');
+  }
+  if (REMOTE_HELPER.test(trimmed)) {
+    throw new GitError(
+      'UNSAFE_URL',
+      `refusing to clone a git remote-helper transport URL ("${firstLine(trimmed)}"); use https://, git://, ssh://, file://, or user@host:path`,
+    );
+  }
 }

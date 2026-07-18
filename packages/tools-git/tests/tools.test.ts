@@ -347,6 +347,29 @@ describe('git.clone / fetch / pull / push', () => {
     expect(git.runs[0]?.args).toEqual(['clone', '--', '-hostile', 'dest']);
   });
 
+  it('clone refuses a git remote-helper transport URL', async () => {
+    const git = FakeGitExecutor.succeedingWith('');
+    await expect(
+      callTool(tool('git.clone', git), { url: "ext::sh -c 'id'", directory: 'dest' }),
+    ).rejects.toMatchObject({ code: 'UNSAFE_URL' });
+    expect(git.runs).toHaveLength(0); // git was never invoked
+  });
+
+  it('clone refuses an empty URL', async () => {
+    const git = FakeGitExecutor.succeedingWith('');
+    await expect(
+      callTool(tool('git.clone', git), { url: '  ', directory: 'dest' }),
+    ).rejects.toMatchObject({ code: 'UNSAFE_URL' });
+  });
+
+  it('clone allows normal URL forms', async () => {
+    for (const url of ['https://github.com/x/y.git', 'git@github.com:x/y.git']) {
+      const git = FakeGitExecutor.succeedingWith('');
+      await callTool(tool('git.clone', git), { url, directory: 'dest' });
+      expect(git.runs[0]?.args).toEqual(['clone', '--', url, 'dest']);
+    }
+  });
+
   it('fetch defaults to origin', async () => {
     const git = FakeGitExecutor.succeedingWith('');
     await callTool(tool('git.fetch', git), {});
