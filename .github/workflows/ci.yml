@@ -44,6 +44,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # @hermes/* packages are consumed through their built dist/ (their
+      # package.json exports/types point at ./dist). Typed linting resolves
+      # those declarations, so the workspace must be built first.
+      - name: Build
+        run: pnpm run build
+
       - name: ESLint
         run: pnpm run lint --max-warnings=0
 
@@ -66,6 +72,12 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # @hermes/* packages resolve to their built dist/*.d.ts (package.json
+      # exports/types point at ./dist), so tsc can only see them once the
+      # workspace is built.
+      - name: Build
+        run: pnpm run build
 
       - name: tsc
         run: pnpm run typecheck
@@ -104,6 +116,11 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      # Packages whose tests import a sibling @hermes/* package resolve it
+      # through its built dist/ entry, so the workspace must be built before
+      # vitest runs.
+      - name: Build
+        run: pnpm run build
       - name: Vitest (with coverage thresholds)
         run: pnpm run test:coverage
 
