@@ -100,7 +100,11 @@ describeIntegration('MemoryService', () => {
       expect(await service.memories.getById(record.id)).toMatchObject({
         content: 'Survives the outage',
       });
-      expect(warnings[0]).toMatch(/without an embedding/);
+      // A warning about storing without an embedding must be emitted. Match by
+      // content, not position: when pgvector is present, MemoryService.create
+      // also logs a semantic-index-status warning first, so this one is not
+      // guaranteed to be warnings[0].
+      expect(warnings.some((w) => w.includes('without an embedding'))).toBe(true);
     });
 
     it('leaves a failed embedding discoverable for backfill', async () => {
