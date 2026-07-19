@@ -195,6 +195,27 @@ export async function main(): Promise<void> {
     }
   };
 
+  // Speak a reply back: TTS to AIFF, ffmpeg to OGG/Opus, upload via sendVoice.
+  const speak = async (chatId: number, text: string): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-tts-'));
+    try {
+      const aiff = path.join(dir, 'out.aiff');
+      const ogg = path.join(dir, 'out.ogg');
+      await execFileAsync(config.ttsCommand, ['-o', aiff, text.slice(0, 800)]);
+      await execFileAsync('ffmpeg', ['-y', '-i', aiff, '-c:a', 'libopus', ogg]);
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('voice', new Blob([await fsp.readFile(ogg)]), 'reply.ogg');
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendVoice`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`sendVoice failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
     token: config.telegramBotToken,
@@ -214,6 +235,7 @@ export async function main(): Promise<void> {
     allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),
     ...(config.whisperModel === '' ? {} : { onVoice }),
+    ...(config.enableVoiceReplies ? { speak } : {}),
   });
 
   const controller = new AbortController();

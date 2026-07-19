@@ -147,6 +147,17 @@ export const telegramSchema = {
   whisperCli: string().default('whisper-cli').describe('whisper.cpp CLI command.'),
 
   /**
+   * Reply with a spoken voice note when the user sent one. `ENABLE_VOICE_REPLIES`.
+   * Needs a local TTS command (macOS `say`) and ffmpeg.
+   */
+  enableVoiceReplies: boolean()
+    .default(false)
+    .describe('Speak replies to voice notes (needs say + ffmpeg).'),
+
+  /** The text-to-speech command. `TTS_COMMAND`. macOS `say` by default. */
+  ttsCommand: string().default('say').describe('TTS command (writes AIFF via -o).'),
+
+  /**
    * Where persistent data (the memory store) lives. `DATA_DIR`. Kept out of the
    * agent's writable workspace so the model cannot tamper with its own memory.
    */

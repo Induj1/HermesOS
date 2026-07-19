@@ -31,6 +31,8 @@ export interface BotDeps {
   ) => Promise<string>;
   /** Transcribe a voice note (by Telegram file id) to text. */
   readonly onVoice?: (fileId: string) => Promise<string>;
+  /** Speak a reply back to a chat as a voice note. */
+  readonly speak?: (chatId: number, text: string) => Promise<void>;
   /** Chat ids allowed to use the bot. Empty/undefined = everyone. */
   readonly allowedChatIds?: readonly string[];
 }
@@ -88,6 +90,7 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
   // A voice note: transcribe it, then treat the transcript as the task.
   let text = ctx.text.trim();
   const voiceId = voiceFileId(ctx.message);
+  const cameByVoice = voiceId !== undefined && deps.onVoice !== undefined;
   if (voiceId !== undefined && deps.onVoice !== undefined) {
     await ctx.reply('Transcribing your voice note…');
     try {
@@ -110,7 +113,16 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
       input: text,
       subject,
     });
-    await ctx.reply(replyText(result));
+    const reply = replyText(result);
+    await ctx.reply(reply);
+    // If they spoke to us, speak back.
+    if (cameByVoice && deps.speak !== undefined) {
+      try {
+        await deps.speak(ctx.message.chat.id, reply);
+      } catch (thrown) {
+        deps.logger?.warn('tts failed', { error: (thrown as Error).message });
+      }
+    }
   } catch (thrown) {
     deps.logger?.error('agent run failed', { error: (thrown as Error).message });
     await ctx.reply('Something went wrong while working on that. Please try again.');

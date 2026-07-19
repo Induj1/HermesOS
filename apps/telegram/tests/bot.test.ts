@@ -147,6 +147,53 @@ describe('handleMessage', () => {
     expect(replies).toContain('the answer');
   });
 
+  it('speaks the reply back when the message came by voice', async () => {
+    const replies: string[] = [];
+    const ctx = {
+      text: '',
+      command: undefined,
+      args: [],
+      message: { chat: { id: 42 }, voice: { file_id: 'v' } },
+      reply: (m: string) => {
+        replies.push(m);
+        return Promise.resolve(undefined);
+      },
+    } as unknown as MessageContext;
+
+    const spoken: { chatId: number; text: string }[] = [];
+    await handleMessage(ctx, {
+      runtime: runtimeWith('the answer'),
+      onVoice: () => Promise.resolve('do the thing'),
+      speak: (chatId, text) => {
+        spoken.push({ chatId, text });
+        return Promise.resolve();
+      },
+    });
+    expect(spoken).toEqual([{ chatId: 42, text: 'the answer' }]);
+  });
+
+  it('does not break when speaking the reply fails', async () => {
+    const replies: string[] = [];
+    const ctx = {
+      text: '',
+      command: undefined,
+      args: [],
+      message: { chat: { id: 42 }, voice: { file_id: 'v' } },
+      reply: (m: string) => {
+        replies.push(m);
+        return Promise.resolve(undefined);
+      },
+    } as unknown as MessageContext;
+
+    await handleMessage(ctx, {
+      runtime: runtimeWith('the answer'),
+      onVoice: () => Promise.resolve('task'),
+      speak: () => Promise.reject(new Error('no say')),
+      logger: spyLogger(),
+    });
+    expect(replies).toContain('the answer'); // text reply still went out
+  });
+
   it('apologises when transcription fails', async () => {
     const replies: string[] = [];
     const ctx = {
