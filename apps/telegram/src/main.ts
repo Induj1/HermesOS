@@ -620,6 +620,99 @@ export async function main(): Promise<void> {
     }
   };
 
+  // Upload an audio file to a chat (title shows in the player).
+  const sendAudioFile = async (
+    chatId: number,
+    file: string,
+    name: string,
+    title: string,
+  ): Promise<void> => {
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    form.append('title', title);
+    form.append('audio', new Blob([await fsp.readFile(file)]), name);
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendAudio`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) throw new Error(`sendAudio failed: ${String(res.status)}`);
+  };
+
+  // A photo captioned "upscale"/"enhance": 4x AI super-resolution, sent as a
+  // document to preserve the full resolution.
+  const onUpscale = async (fileId: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-up-'));
+    try {
+      const inPath = path.join(dir, 'in.png');
+      const out = path.join(dir, 'upscaled.png');
+      await fsp.writeFile(inPath, await downloadTgFile(fileId));
+      await execFileAsync(config.imagegenPython, [config.upscaleScript, inPath, out], {
+        timeout: 600_000,
+      });
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('document', new Blob([await fsp.readFile(out)]), 'upscaled.png');
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`sendDocument failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  // A photo captioned "erase the <object>": text-guided inpainting, sent back.
+  const onInpaint = async (
+    fileId: string,
+    target: string,
+    chatId: number,
+  ): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-inp-'));
+    try {
+      const inPath = path.join(dir, 'in.png');
+      const out = path.join(dir, 'edited.png');
+      await fsp.writeFile(inPath, await downloadTgFile(fileId));
+      await execFileAsync(
+        config.imagegenPython,
+        [config.inpaintScript, inPath, out, target],
+        { timeout: 600_000 },
+      );
+      await sendPhoto(chatId, await fsp.readFile(out), 'edited.png');
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  // An audio file captioned "instrumental"/"vocals only": split with Demucs and
+  // send the requested stem(s) as audio tracks.
+  const onStemSplit = async (
+    fileId: string,
+    choice: 'vocals' | 'instrumental' | 'both',
+    chatId: number,
+  ): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-stem-'));
+    try {
+      const inPath = path.join(dir, 'in.audio');
+      const vocals = path.join(dir, 'vocals.mp3');
+      const instrumental = path.join(dir, 'instrumental.mp3');
+      await fsp.writeFile(inPath, await downloadTgFile(fileId));
+      await execFileAsync(
+        config.imagegenPython,
+        [config.stemScript, inPath, vocals, instrumental],
+        { timeout: 600_000 },
+      );
+      if (choice === 'vocals' || choice === 'both') {
+        await sendAudioFile(chatId, vocals, 'vocals.mp3', 'Vocals');
+      }
+      if (choice === 'instrumental' || choice === 'both') {
+        await sendAudioFile(chatId, instrumental, 'instrumental.mp3', 'Instrumental');
+      }
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // A photo captioned "scan qr": download it and decode any QR codes (OpenCV).
   const onQr = async (fileId: string): Promise<string> => {
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-qr-'));
@@ -1043,6 +1136,15 @@ export async function main(): Promise<void> {
     ...(config.imagegenPython !== '' && config.memeScript !== '' ? { onMeme } : {}),
     ...(config.imagegenPython !== '' && config.stickerScript !== ''
       ? { onSticker }
+      : {}),
+    ...(config.imagegenPython !== '' && config.upscaleScript !== ''
+      ? { onUpscale }
+      : {}),
+    ...(config.imagegenPython !== '' && config.inpaintScript !== ''
+      ? { onInpaint }
+      : {}),
+    ...(config.imagegenPython !== '' && config.stemScript !== ''
+      ? { onStemSplit }
       : {}),
   });
 

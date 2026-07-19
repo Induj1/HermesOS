@@ -15,6 +15,13 @@ import { AGENT_NAME, replyText } from './agent.js';
 import { isRemoveBgRequest } from './bg.js';
 import type { ConversationHistory } from './conversation.js';
 import { isExtractRequest } from './extract.js';
+import {
+  isInpaintRequest,
+  isUpscaleRequest,
+  parseInpaintTarget,
+  stemRequest,
+  type StemChoice,
+} from './media-fx.js';
 import { isOcrRequest } from './ocr.js';
 import {
   isBlurFacesRequest,
@@ -99,6 +106,20 @@ export interface BotDeps {
   ) => Promise<void>;
   /** Turn a photo into a Telegram sticker and send it. */
   readonly onSticker?: (fileId: string, chatId: number) => Promise<void>;
+  /** AI-upscale/restore a photo and send it back. */
+  readonly onUpscale?: (fileId: string, chatId: number) => Promise<void>;
+  /** Erase a described object from a photo (inpaint) and send it back. */
+  readonly onInpaint?: (
+    fileId: string,
+    target: string,
+    chatId: number,
+  ) => Promise<void>;
+  /** Split an audio file into vocals/instrumental and send the requested stem(s). */
+  readonly onStemSplit?: (
+    fileId: string,
+    choice: StemChoice,
+    chatId: number,
+  ) => Promise<void>;
   /** Transcribe a voice note (by Telegram file id) to text. */
   readonly onVoice?: (fileId: string) => Promise<string>;
   /** Transcribe an uploaded audio/video file (by Telegram file id) to text. */
@@ -183,6 +204,30 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
       } catch (thrown) {
         deps.logger?.error('removebg failed', { error: (thrown as Error).message });
         await ctx.reply('I could not remove the background.');
+      }
+      return;
+    }
+    if (isInpaintRequest(cap) && deps.onInpaint !== undefined) {
+      await ctx.reply('🪄 Erasing that for you (this can take a minute)…');
+      try {
+        await deps.onInpaint(
+          largest.file_id,
+          parseInpaintTarget(cap),
+          ctx.message.chat.id,
+        );
+      } catch (thrown) {
+        deps.logger?.error('inpaint failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not edit that image.');
+      }
+      return;
+    }
+    if (isUpscaleRequest(cap) && deps.onUpscale !== undefined) {
+      await ctx.reply('🔬 Upscaling (this can take a minute)…');
+      try {
+        await deps.onUpscale(largest.file_id, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('upscale failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not upscale that image.');
       }
       return;
     }
@@ -276,18 +321,32 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
   // An uploaded audio/video file: transcribe it and hand back the transcript
   // (unlike a voice note, we don't run it as a task — the file *is* the ask).
   const mediaId = mediaFileId(ctx.message);
-  if (mediaId !== undefined && deps.onTranscribeFile !== undefined) {
-    await ctx.reply('Transcribing your file… (this can take a while)');
-    try {
-      const transcript = (await deps.onTranscribeFile(mediaId)).trim();
-      await ctx.reply(transcript === '' ? '(no speech detected)' : transcript);
-    } catch (thrown) {
-      deps.logger?.error('file transcription failed', {
-        error: (thrown as Error).message,
-      });
-      await ctx.reply('I could not transcribe that file.');
+  if (mediaId !== undefined) {
+    const mediaCaption = (ctx.message as { caption?: string }).caption ?? '';
+    const stem = stemRequest(mediaCaption);
+    if (stem !== undefined && deps.onStemSplit !== undefined) {
+      await ctx.reply('🎚 Separating stems (this can take a minute)…');
+      try {
+        await deps.onStemSplit(mediaId, stem, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('stem split failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not separate that audio.');
+      }
+      return;
     }
-    return;
+    if (deps.onTranscribeFile !== undefined) {
+      await ctx.reply('Transcribing your file… (this can take a while)');
+      try {
+        const transcript = (await deps.onTranscribeFile(mediaId)).trim();
+        await ctx.reply(transcript === '' ? '(no speech detected)' : transcript);
+      } catch (thrown) {
+        deps.logger?.error('file transcription failed', {
+          error: (thrown as Error).message,
+        });
+        await ctx.reply('I could not transcribe that file.');
+      }
+      return;
+    }
   }
 
   // A voice note: transcribe it, then treat the transcript as the task.

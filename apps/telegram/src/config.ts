@@ -301,6 +301,16 @@ export const telegramSchema = {
   memeScript: string().default('').describe('Meme script (empty = off).'),
   stickerScript: string().default('').describe('Sticker script (empty = off).'),
 
+  /**
+   * Heavy AI media scripts, run via IMAGEGEN_PYTHON. A photo captioned
+   * "upscale"/"enhance" or "erase the <object>", or an audio file captioned
+   * "instrumental"/"vocals only", triggers the matching one.
+   * `UPSCALE_SCRIPT` / `INPAINT_SCRIPT` / `STEM_SCRIPT`. Empty disables that one.
+   */
+  upscaleScript: string().default('').describe('SD upscaler script (empty = off).'),
+  inpaintScript: string().default('').describe('Inpaint/erase script (empty = off).'),
+  stemScript: string().default('').describe('Stem-split script (empty = off).'),
+
   /** Serve a read-only dashboard on 127.0.0.1:PORT. `DASHBOARD_PORT`. 0 = off. */
   dashboardPort: integer().default(0).describe('Local dashboard port (0 = off).'),
 

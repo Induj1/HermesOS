@@ -44,6 +44,13 @@ export {
 export { shouldIngestPath } from './repo.js';
 export { isExtractRequest } from './extract.js';
 export {
+  isInpaintRequest,
+  isUpscaleRequest,
+  parseInpaintTarget,
+  stemRequest,
+  type StemChoice,
+} from './media-fx.js';
+export {
   isBlurFacesRequest,
   isMemeRequest,
   isStickerRequest,

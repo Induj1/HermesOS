@@ -266,6 +266,116 @@ describe('handleMessage', () => {
     );
   });
 
+  it('routes inpaint and upscale captions, passing the parsed target', async () => {
+    const inpaints: { id: string; target: string }[] = [];
+    const inp = fakePhotoContext('erase the person on the left', [
+      { file_id: 'i', width: 800, height: 600 },
+    ]);
+    await handleMessage(inp.ctx, {
+      runtime: runtimeWith('x'),
+      onInpaint: (id, target) => {
+        inpaints.push({ id, target });
+        return Promise.resolve();
+      },
+      onPhoto: () => Promise.resolve('should not run'),
+    });
+    expect(inpaints).toEqual([{ id: 'i', target: 'the person on the left' }]);
+
+    const upscaled: string[] = [];
+    const up = fakePhotoContext('enhance this', [
+      { file_id: 'u', width: 200, height: 200 },
+    ]);
+    await handleMessage(up.ctx, {
+      runtime: runtimeWith('x'),
+      onUpscale: (id) => {
+        upscaled.push(id);
+        return Promise.resolve();
+      },
+    });
+    expect(upscaled).toEqual(['u']);
+
+    // "remove the background" is rembg's job, not inpaint.
+    const bg: string[] = [];
+    const bgCtx = fakePhotoContext('remove the background', [
+      { file_id: 'b', width: 200, height: 200 },
+    ]);
+    await handleMessage(bgCtx.ctx, {
+      runtime: runtimeWith('x'),
+      onRemoveBg: (id) => {
+        bg.push(id);
+        return Promise.resolve();
+      },
+      onInpaint: () => Promise.reject(new Error('should not run')),
+    });
+    expect(bg).toEqual(['b']);
+
+    // Both effects apologise on failure.
+    const inpFail = fakePhotoContext('erase the sign', [
+      { file_id: 'x', width: 9, height: 9 },
+    ]);
+    await handleMessage(inpFail.ctx, {
+      runtime: runtimeWith('x'),
+      onInpaint: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(inpFail.replies.some((r) => /could not edit/i.test(r))).toBe(true);
+
+    const upFail = fakePhotoContext('upscale', [{ file_id: 'y', width: 9, height: 9 }]);
+    await handleMessage(upFail.ctx, {
+      runtime: runtimeWith('x'),
+      onUpscale: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(upFail.replies.some((r) => /could not upscale/i.test(r))).toBe(true);
+  });
+
+  it('splits stems on an audio caption, else transcribes', async () => {
+    const audioCtx = (caption: string) => {
+      const replies: string[] = [];
+      const ctx = {
+        text: '',
+        command: undefined,
+        args: [],
+        message: { chat: { id: 42 }, audio: { file_id: 'song' }, caption },
+        reply: (m: string) => {
+          replies.push(m);
+          return Promise.resolve(undefined);
+        },
+      } as unknown as MessageContext;
+      return { ctx, replies };
+    };
+
+    const stems: { id: string; choice: string }[] = [];
+    const karaoke = audioCtx('karaoke');
+    await handleMessage(karaoke.ctx, {
+      runtime: runtimeWith('x'),
+      onStemSplit: (id, choice) => {
+        stems.push({ id, choice });
+        return Promise.resolve();
+      },
+      onTranscribeFile: () => Promise.resolve('should not run'),
+    });
+    expect(stems).toEqual([{ id: 'song', choice: 'instrumental' }]);
+
+    // No stem caption → falls through to transcription.
+    const plain = audioCtx('');
+    await handleMessage(plain.ctx, {
+      runtime: runtimeWith('x'),
+      onStemSplit: () => Promise.reject(new Error('should not run')),
+      onTranscribeFile: () => Promise.resolve('the transcript'),
+    });
+    expect(plain.replies).toContain('the transcript');
+
+    // Stem split failure apologises.
+    const fail = audioCtx('instrumental');
+    await handleMessage(fail.ctx, {
+      runtime: runtimeWith('x'),
+      onStemSplit: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(fail.replies.some((r) => /could not separate/i.test(r))).toBe(true);
+  });
+
   it('routes photo-studio captions: meme, blur faces, sticker', async () => {
     const memes: { id: string; top: string; bottom: string }[] = [];
     const meme = fakePhotoContext('meme: hello | world', [
