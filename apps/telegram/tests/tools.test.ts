@@ -53,4 +53,14 @@ describe('buildTools', () => {
     }).map((tool) => tool.name);
     expect(noGithub).not.toContain('github.repo');
   });
+
+  it('includes python.run only when a run port is supplied', () => {
+    const base = {
+      fs: new MemoryFileSystem(),
+      http: FakeHttpClient.respondingWith(''),
+    };
+    expect(buildTools(base).map((tool) => tool.name)).not.toContain('python.run');
+    const withPy = buildTools({ ...base, pythonRun: () => Promise.resolve('ok') });
+    expect(withPy.map((tool) => tool.name)).toContain('python.run');
+  });
 });

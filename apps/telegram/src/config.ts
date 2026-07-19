@@ -203,6 +203,12 @@ export const telegramSchema = {
   /** MusicGen script for /music (uses IMAGEGEN_PYTHON). `MUSIC_SCRIPT`. Empty = off. */
   musicScript: string().default('').describe('MusicGen script path (empty = off).'),
 
+  /**
+   * Give the agent a python.run tool (data analysis + charts). `ENABLE_PYTHON`.
+   * Runs arbitrary Python via IMAGEGEN_PYTHON — like the shell, an explicit opt-in.
+   */
+  enablePython: boolean().default(false).describe('Enable the python.run tool.'),
+
   /** Serve a read-only dashboard on 127.0.0.1:PORT. `DASHBOARD_PORT`. 0 = off. */
   dashboardPort: integer().default(0).describe('Local dashboard port (0 = off).'),
 

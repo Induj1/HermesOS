@@ -13,6 +13,7 @@ export { renderDashboard, type DashboardData } from './dashboard.js';
 export { browserTools, type BrowsePort } from './browser.js';
 export { docTools, type RenderPdfPort } from './doc.js';
 export { githubTools } from './github.js';
+export { pythonTools, type PythonRunPort } from './python.js';
 export { lenientWorkspaceFs } from './workspace-fs.js';
 export {
   MemoryStore,

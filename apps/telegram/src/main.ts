@@ -151,12 +151,42 @@ export async function main(): Promise<void> {
     }
   };
 
+  // Run Python in the workspace (charts land there for /get). MPLBACKEND=Agg so
+  // matplotlib renders headless.
+  const pythonRun = async (code: string): Promise<string> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-py-'));
+    try {
+      const scriptPath = path.join(dir, 'script.py');
+      await fsp.writeFile(scriptPath, code);
+      try {
+        const { stdout, stderr } = await execFileAsync(
+          config.imagegenPython,
+          [scriptPath],
+          {
+            cwd: workspaceDir,
+            timeout: 120_000,
+            maxBuffer: 4_000_000,
+            env: { ...process.env, MPLBACKEND: 'Agg' },
+          },
+        );
+        const combined = stdout + (stderr.trim() === '' ? '' : `\n[stderr] ${stderr}`);
+        return combined.trim().slice(0, 4000) || '(no output)';
+      } catch (thrown) {
+        const e = thrown as { stdout?: string; stderr?: string; message: string };
+        return `Python error:\n${(e.stderr ?? e.stdout ?? e.message).slice(0, 2000)}`;
+      }
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   const tools = buildTools({
     fs,
     http,
     githubToken: config.githubToken,
     ...(shell === undefined ? {} : { shell }),
     ...(config.enableBrowser ? { browse, renderPdf } : {}),
+    ...(config.enablePython && config.imagegenPython !== '' ? { pythonRun } : {}),
   });
   const executor = toolExecutor(tools, { logger });
 

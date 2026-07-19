@@ -17,6 +17,7 @@ import type { ShellExecutor } from '@hermes/tools-shell';
 import { browserTools, type BrowsePort } from './browser.js';
 import { docTools, type RenderPdfPort } from './doc.js';
 import { githubTools } from './github.js';
+import { pythonTools, type PythonRunPort } from './python.js';
 import { searchTools } from './search.js';
 
 export interface ToolDeps {
@@ -30,6 +31,8 @@ export interface ToolDeps {
   readonly renderPdf?: RenderPdfPort;
   /** When set, GitHub tools (repo/issues/createIssue) are included. */
   readonly githubToken?: string;
+  /** When present, a python.run tool (data analysis + charts) is included. */
+  readonly pythonRun?: PythonRunPort;
 }
 
 /** Build the agent's tools over the given ports. Filesystem and HTTP always;
@@ -46,5 +49,6 @@ export function buildTools(deps: ToolDeps): readonly HermesTool[] {
   if (deps.githubToken !== undefined && deps.githubToken !== '') {
     tools.push(...githubTools(deps.http, deps.githubToken));
   }
+  if (deps.pythonRun !== undefined) tools.push(...pythonTools(deps.pythonRun));
   return tools;
 }
