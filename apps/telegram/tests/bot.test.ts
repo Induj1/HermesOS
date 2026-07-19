@@ -1202,6 +1202,199 @@ describe('registerHandlers', () => {
     expect(fail.replies.some((r) => /could not do that/i.test(r))).toBe(true);
   });
 
+  it('registers /review, /scan, /cve, /arxiv with usage + failure paths', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const seen: string[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onReview: (p) => {
+        seen.push(`review:${p.slice(0, 12)}`);
+        return Promise.resolve('reviewed');
+      },
+      onScan: (url) => {
+        seen.push(`scan:${url}`);
+        return Promise.resolve('graded');
+      },
+      onCve: (kw) => {
+        seen.push(`cve:${kw}`);
+        return Promise.resolve('cves');
+      },
+      onArxiv: (q) => {
+        seen.push(`arxiv:${q}`);
+        return Promise.resolve('papers');
+      },
+    });
+
+    await handlers['review']?.(ctxWith(['const', 'x=1']).ctx);
+    await handlers['scan']?.(ctxWith(['https://x.test']).ctx);
+    await handlers['cve']?.(ctxWith(['nginx']).ctx);
+    await handlers['arxiv']?.(ctxWith(['quantum', 'edge']).ctx);
+    expect(seen).toContain('scan:https://x.test');
+    expect(seen).toContain('cve:nginx');
+    expect(seen).toContain('arxiv:quantum edge');
+    expect(seen.some((s) => s.startsWith('review:'))).toBe(true);
+
+    // Usage messages when args are missing.
+    for (const cmd of ['review', 'scan', 'cve', 'arxiv']) {
+      const u = ctxWith([]);
+      await handlers[cmd]?.(u.ctx);
+      expect(u.replies.some((r) => r.includes('Usage'))).toBe(true);
+    }
+
+    // Failures apologise.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onReview: () => Promise.reject(new Error('boom')),
+      onScan: () => Promise.reject(new Error('boom')),
+      onCve: () => Promise.reject(new Error('boom')),
+      onArxiv: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const rf = ctxWith(['x']);
+    await handlers['scan']?.(rf.ctx);
+    expect(rf.replies.some((r) => /Could not scan/i.test(r))).toBe(true);
+    const revf = ctxWith(['code']);
+    await handlers['review']?.(revf.ctx);
+    expect(revf.replies.some((r) => /could not review/i.test(r))).toBe(true);
+    const cvf = ctxWith(['nginx']);
+    await handlers['cve']?.(cvf.ctx);
+    expect(cvf.replies.some((r) => /Could not fetch CVEs/i.test(r))).toBe(true);
+    const axf = ctxWith(['quantum']);
+    await handlers['arxiv']?.(axf.ctx);
+    expect(axf.replies.some((r) => /Could not search arXiv/i.test(r))).toBe(true);
+
+    // Not on the allowlist → ignored.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onScan: () => Promise.resolve('x'),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['https://x'], 999);
+    await handlers['scan']?.(denied.ctx);
+    expect(denied.replies).toEqual([]);
+  });
+
+  it('registers /hash, /encode, /decode offline codec helpers', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    // The codec commands ride along with the security suite (onScan present).
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onScan: () => Promise.resolve(''),
+    });
+
+    const h = ctxWith(['sha256', 'abc']);
+    await handlers['hash']?.(h.ctx);
+    expect(h.replies).toContain(
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+    );
+
+    const e = ctxWith(['base64', 'hi']);
+    await handlers['encode']?.(e.ctx);
+    expect(e.replies).toContain('aGk=');
+
+    const d = ctxWith(['base64', 'aGk=']);
+    await handlers['decode']?.(d.ctx);
+    expect(d.replies).toContain('hi');
+
+    // Usage + error paths.
+    await handlers['hash']?.(ctxWith(['sha256']).ctx);
+    const badKind = ctxWith(['rot13', 'x']);
+    await handlers['encode']?.(badKind.ctx);
+    expect(badKind.replies.some((r) => r.includes('unknown encoding'))).toBe(true);
+    const badAlgo = ctxWith(['crc32', 'x']);
+    await handlers['hash']?.(badAlgo.ctx);
+    expect(badAlgo.replies.some((r) => r.includes('unknown hash'))).toBe(true);
+    const encUsage = ctxWith(['base64']);
+    await handlers['decode']?.(encUsage.ctx);
+    expect(encUsage.replies.some((r) => r.includes('Usage'))).toBe(true);
+  });
+
+  it('registers /apply, /applications, /status tracker commands', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const logged: { company: string; role: string }[] = [];
+    const updated: { id: string; status: string }[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onApply: (_c, company, role) => {
+        logged.push({ company, role });
+        return Promise.resolve('logged');
+      },
+      onApplications: () => Promise.resolve('list'),
+      onAppStatus: (_c, id, status) => {
+        updated.push({ id, status });
+        return Promise.resolve('updated');
+      },
+    });
+
+    await handlers['apply']?.(ctxWith(['Acme', '|', 'Security', 'Engineer']).ctx);
+    expect(logged).toEqual([{ company: 'Acme', role: 'Security Engineer' }]);
+
+    const list = ctxWith([]);
+    await handlers['applications']?.(list.ctx);
+    expect(list.replies).toContain('list');
+
+    await handlers['status']?.(ctxWith(['app_1', 'interview']).ctx);
+    expect(updated).toEqual([{ id: 'app_1', status: 'interview' }]);
+
+    // Usage: bad status and empty apply.
+    const badStatus = ctxWith(['app_1', 'nope']);
+    await handlers['status']?.(badStatus.ctx);
+    expect(badStatus.replies.some((r) => r.includes('Usage'))).toBe(true);
+    const emptyApply = ctxWith([]);
+    await handlers['apply']?.(emptyApply.ctx);
+    expect(emptyApply.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    // Failure path.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onApply: () => Promise.reject(new Error('boom')),
+      onApplications: () => Promise.reject(new Error('boom')),
+      onAppStatus: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const fail = ctxWith(['Acme']);
+    await handlers['apply']?.(fail.ctx);
+    expect(fail.replies.some((r) => /Could not log/i.test(r))).toBe(true);
+    const lf = ctxWith([]);
+    await handlers['applications']?.(lf.ctx);
+    expect(lf.replies.some((r) => /Could not list/i.test(r))).toBe(true);
+    const sf = ctxWith(['app_1', 'offer']);
+    await handlers['status']?.(sf.ctx);
+    expect(sf.replies.some((r) => /Could not update/i.test(r))).toBe(true);
+
+    // Not on the allowlist → ignored.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onApply: () => Promise.resolve('x'),
+      onApplications: () => Promise.resolve('x'),
+      onAppStatus: () => Promise.resolve('x'),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['Acme'], 999);
+    await handlers['apply']?.(denied.ctx);
+    await handlers['applications']?.(ctxWith([], 999).ctx);
+    await handlers['status']?.(ctxWith(['a', 'offer'], 999).ctx);
+    expect(denied.replies).toEqual([]);
+  });
+
   it('registers /qr: generates, shows usage, rejects, and handles failure', async () => {
     const handlers: Record<string, Handler> = {};
     const bot: CommandBot = {

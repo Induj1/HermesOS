@@ -417,6 +417,29 @@ export const telegramSchema = {
    * `ENABLE_CAREER`.
    */
   enableCareer: boolean().default(false).describe('Enable the career toolkit.'),
+
+  /**
+   * Application tracker: /apply, /applications, /status — logs job applications
+   * and schedules a follow-up nudge. `ENABLE_APPLICATIONS`.
+   */
+  enableApplications: boolean().default(false).describe('Enable the /apply tracker.'),
+
+  /** Days after applying to send the follow-up reminder. `APPLICATION_FOLLOWUP_DAYS`. */
+  applicationFollowupDays: integer()
+    .default(7)
+    .describe('Days until an application follow-up reminder.'),
+
+  /**
+   * Security tools: /scan (header audit), /cve (NVD lookup), and /encode /decode
+   * /hash. `ENABLE_SECURITY`. /scan and /cve make outbound HTTPS requests.
+   */
+  enableSecurity: boolean().default(false).describe('Enable the security tools.'),
+
+  /** Code review: /review <code|path> runs a security-aware review. `ENABLE_REVIEW`. */
+  enableReview: boolean().default(false).describe('Enable /review.'),
+
+  /** Research radar: /arxiv <query> and an arxiv.search tool. `ENABLE_RESEARCH`. */
+  enableResearch: boolean().default(false).describe('Enable the arXiv research radar.'),
 };
 
 export type TelegramConfig = Config<typeof telegramSchema>;

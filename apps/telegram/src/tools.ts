@@ -7,7 +7,7 @@
  * supplies `MemoryFileSystem` / `FakeHttpClient` / `FakeShellExecutor`.
  */
 
-import type { HermesTool } from '@hermes/tools';
+import { defineTool, s, type HermesTool } from '@hermes/tools';
 import { filesystemTools } from '@hermes/tools-fs';
 import type { FileSystem } from '@hermes/tools-fs';
 import { httpTools } from '@hermes/tools-http';
@@ -42,6 +42,10 @@ export interface ToolDeps {
   readonly translate?: TranslatePort;
   /** When present, a diagram.render tool (Mermaid → PNG) is included. */
   readonly renderDiagram?: DiagramRenderPort;
+  /** When present, a security.cve tool (NVD lookup) is included. */
+  readonly cveSearch?: (keyword: string) => Promise<string>;
+  /** When present, a research.arxiv tool (paper search) is included. */
+  readonly arxivSearch?: (query: string) => Promise<string>;
 }
 
 /** Build the agent's tools over the given ports. Filesystem and HTTP always;
@@ -63,6 +67,36 @@ export function buildTools(deps: ToolDeps): readonly HermesTool[] {
   if (deps.translate !== undefined) tools.push(...translateTools(deps.translate));
   if (deps.renderDiagram !== undefined) {
     tools.push(...diagramTools(deps.renderDiagram));
+  }
+  if (deps.cveSearch !== undefined) {
+    const search = deps.cveSearch;
+    tools.push(
+      defineTool({
+        name: 'security.cve',
+        description:
+          'Look up recent CVEs (vulnerabilities) by keyword — a product, library, ' +
+          'or technology (e.g. "nginx", "log4j", "react"). Returns a short digest.',
+        tags: ['security', 'cve'],
+        input: s.object({ keyword: s.string({ description: 'What to search for.' }) }),
+        output: s.string(),
+        execute: ({ keyword }) => search(keyword),
+      }),
+    );
+  }
+  if (deps.arxivSearch !== undefined) {
+    const search = deps.arxivSearch;
+    tools.push(
+      defineTool({
+        name: 'research.arxiv',
+        description:
+          'Search arXiv for recent papers on a topic (e.g. "quantum reinforcement ' +
+          'learning edge"). Returns the newest matches with titles, authors, links.',
+        tags: ['research', 'arxiv'],
+        input: s.object({ query: s.string({ description: 'The research topic.' }) }),
+        output: s.string(),
+        execute: ({ query }) => search(query),
+      }),
+    );
   }
   return tools;
 }

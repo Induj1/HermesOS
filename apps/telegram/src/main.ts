@@ -38,8 +38,16 @@ import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
 import { DOCS_SUBJECT, REPO_SUBJECT, htmlToText, ingestDocs } from './rag.js';
 import { shouldIngestPath } from './repo.js';
+import {
+  formatApplications,
+  type Application,
+  type AppStatus,
+} from './applications.js';
+import { arxivUrl, formatPapers, parseArxiv } from './arxiv.js';
+import { formatCves, nvdUrl, parseNvd } from './cve.js';
 import { humanDuration, type Reminder } from './reminders.js';
 import { localCronToUtc, type ScheduledTask } from './schedules.js';
+import { analyzeSecurityHeaders, formatSecurityReport } from './security.js';
 import { guardedShell } from './shell-guard.js';
 import { buildTeamRuntime } from './team.js';
 import { buildTools } from './tools.js';
@@ -275,10 +283,28 @@ export async function main(): Promise<void> {
     return (json.message?.content ?? '').trim();
   };
 
+  // Fetch JSON/text from a public URL for the intel tools (CVE / arXiv). These
+  // are the agent's tools, so keep them behind the SSRF-guarded http client.
+  const httpGet = async (target: string): Promise<Response> => {
+    const res = await fetch(target, { headers: { 'user-agent': 'hermes-telegram' } });
+    if (!res.ok) throw new Error(`GET ${target} -> ${String(res.status)}`);
+    return res;
+  };
+  const cveSearch = async (keyword: string): Promise<string> => {
+    const body: unknown = await (await httpGet(nvdUrl(keyword))).json();
+    return formatCves(keyword, parseNvd(body));
+  };
+  const arxivSearch = async (query: string): Promise<string> => {
+    const xml = await (await httpGet(arxivUrl(query))).text();
+    return formatPapers(query, parseArxiv(xml));
+  };
+
   const tools = buildTools({
     fs,
     http,
     githubToken: config.githubToken,
+    ...(config.enableSecurity ? { cveSearch } : {}),
+    ...(config.enableResearch ? { arxivSearch } : {}),
     ...(shell === undefined ? {} : { shell }),
     ...(config.enableBrowser ? { browse, renderPdf } : {}),
     ...(config.enablePython && config.imagegenPython !== '' ? { pythonRun } : {}),
@@ -403,6 +429,68 @@ export async function main(): Promise<void> {
     return `🗑 Cancelled ${id}.`;
   };
 
+  // Application tracker: persist applications and schedule a follow-up reminder
+  // (reusing the reminder machinery) a configurable number of days out.
+  const applicationsFile = path.resolve(config.dataDir, 'applications.json');
+  const applications = await loadJsonArray<Application>(applicationsFile);
+  const saveApplications = (): Promise<void> =>
+    fsp.writeFile(applicationsFile, JSON.stringify(applications), 'utf8');
+  const onApply = async (
+    chatId: number,
+    company: string,
+    role: string,
+  ): Promise<string> => {
+    const id = `app_${String(Date.now())}_${String(applications.length)}`;
+    applications.push({
+      id,
+      chatId,
+      company,
+      role,
+      status: 'applied',
+      atMs: Date.now(),
+    });
+    await saveApplications();
+    const days = config.applicationFollowupDays;
+    const remId = `${id}_followup`;
+    const label = role === '' ? company : `${company} (${role})`;
+    const reminder = {
+      id: remId,
+      chatId,
+      atMs: Date.now() + days * 86_400_000,
+      message: `Follow up on your application to ${label}?`,
+    };
+    reminders.push(reminder);
+    await saveReminders();
+    scheduler.add(
+      {
+        id: remId,
+        trigger: { kind: 'once', atMs: reminder.atMs },
+        payload: { kind: 'reminder', ...reminder },
+      },
+      Date.now(),
+    );
+    return `📋 Logged ${id}: ${label}. I'll nudge you to follow up in ${String(days)} days.`;
+  };
+  const onApplications = (chatId: number): Promise<string> =>
+    Promise.resolve(
+      formatApplications(applications.filter((a) => a.chatId === chatId)),
+    );
+  const onAppStatus = async (
+    chatId: number,
+    id: string,
+    status: string,
+  ): Promise<string> => {
+    const app = applications.find((a) => a.id === id && a.chatId === chatId);
+    if (app === undefined) return `No application ${id} for this chat.`;
+    app.status = status.toLowerCase() as AppStatus;
+    await saveApplications();
+    return `Updated ${id} → ${app.status}.`;
+  };
+
+  // /cve and /arxiv reuse the intel search ports the agent tools use.
+  const onCve = cveSearch;
+  const onArxiv = arxivSearch;
+
   // /ingest reads the docs folder recursively, chunks + embeds each file.
   const docsDir = path.resolve(config.docsDir);
   const walkFiles = async (dir: string): Promise<string[]> => {
@@ -446,14 +534,31 @@ export async function main(): Promise<void> {
     return `Ingested ${url} into ${String(chunks)} chunks. Ask me about it!`;
   };
 
-  // Career toolkit: run the agent on a résumé-grounded prompt (owner profile is
-  // always in the system prompt; the résumé is recalled via RAG if ingested).
-  const onCareer = async (prompt: string, chatId: number): Promise<string> => {
+  // Career toolkit + code review: run the agent on a prepared prompt (the owner
+  // profile is always in the system prompt; the résumé is recalled if ingested).
+  const runAgentPrompt = async (prompt: string, chatId: number): Promise<string> => {
     const result = await runtime.run(AGENT_NAME, {
       input: prompt,
       subject: String(chatId),
     });
     return replyText(result);
+  };
+  const onCareer = runAgentPrompt;
+  const onReview = runAgentPrompt;
+
+  // /scan: GET a URL and grade its security response headers (read-only, safe).
+  const onScan = async (url: string): Promise<string> => {
+    const target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    const res = await fetch(target, {
+      method: 'GET',
+      headers: { 'user-agent': 'hermes-telegram-scan' },
+      redirect: 'follow',
+    });
+    const headers: Record<string, string> = {};
+    res.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+    return formatSecurityReport(target, analyzeSecurityHeaders(headers));
   };
 
   // /repo: walk a local source repo, keep the source files, and embed them under
@@ -1132,6 +1237,10 @@ export async function main(): Promise<void> {
       : {}),
     ...(config.enableRepoQa ? { onRepo } : {}),
     ...(config.enableCareer ? { onCareer } : {}),
+    ...(config.enableReview ? { onReview } : {}),
+    ...(config.enableSecurity ? { onScan, onCve } : {}),
+    ...(config.enableResearch ? { onArxiv } : {}),
+    ...(config.enableApplications ? { onApply, onApplications, onAppStatus } : {}),
     ...(config.enableAudiobook ? { onAudiobook } : {}),
     ...(config.imagegenPython !== '' && config.videoScript !== '' ? { onVideo } : {}),
     ...(config.enableMusicVideo &&

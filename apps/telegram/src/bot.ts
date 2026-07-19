@@ -12,8 +12,11 @@ import type { AgentRuntime } from '@hermes/agent';
 import type { Logger } from '@hermes/kernel';
 import type { Handler, MessageContext } from '@hermes/telegram';
 import { AGENT_NAME, replyText } from './agent.js';
+import { APP_STATUSES, isAppStatus, parseApply } from './applications.js';
 import { isRemoveBgRequest } from './bg.js';
 import { buildCareerPrompt, type CareerTask } from './career.js';
+import { decode, encode, hash } from './codec.js';
+import { buildReviewPrompt } from './review.js';
 import type { ConversationHistory } from './conversation.js';
 import { isExtractRequest } from './extract.js';
 import {
@@ -56,6 +59,24 @@ export interface BotDeps {
   readonly onRepo?: (path: string) => Promise<string>;
   /** Run the agent on a career prompt (cover letter, résumé tailoring, interview). */
   readonly onCareer?: (prompt: string, chatId: number) => Promise<string>;
+  /** Run the agent on a code-review prompt; returns its reply. */
+  readonly onReview?: (prompt: string, chatId: number) => Promise<string>;
+  /** Audit a URL's security headers; returns a graded report. */
+  readonly onScan?: (url: string, chatId: number) => Promise<string>;
+  /** Look up recent CVEs by keyword; returns a digest. */
+  readonly onCve?: (keyword: string) => Promise<string>;
+  /** Search arXiv for recent papers; returns a digest. */
+  readonly onArxiv?: (query: string) => Promise<string>;
+  /** Log a job application (and schedule a follow-up); returns an ack. */
+  readonly onApply?: (chatId: number, company: string, role: string) => Promise<string>;
+  /** List a chat's tracked applications. */
+  readonly onApplications?: (chatId: number) => Promise<string>;
+  /** Update an application's status; returns an ack. */
+  readonly onAppStatus?: (
+    chatId: number,
+    id: string,
+    status: string,
+  ) => Promise<string>;
   /** Narrate a workspace document to the chat as an audio track. */
   readonly onAudiobook?: (path: string, chatId: number) => Promise<void>;
   /** Generate a short animated clip from a prompt and send it. */
@@ -721,6 +742,161 @@ export function registerHandlers<TBot extends CommandBot>(
     careerCmd('coverletter', 'coverletter', true);
     careerCmd('tailor', 'tailor', true);
     careerCmd('interview', 'interview', false);
+  }
+  if (deps.onReview !== undefined) {
+    const onReview = deps.onReview;
+    bot.command('review', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const arg = ctx.args.join(' ').trim();
+      if (arg === '') {
+        await ctx.reply('Usage: /review <code snippet or a workspace file path>');
+        return;
+      }
+      await ctx.reply('🔍 Reviewing…');
+      try {
+        await ctx.reply(await onReview(buildReviewPrompt(arg), ctx.message.chat.id));
+      } catch (thrown) {
+        deps.logger?.error('review failed', { error: (thrown as Error).message });
+        await ctx.reply('Sorry, I could not review that right now.');
+      }
+    });
+  }
+  if (deps.onScan !== undefined) {
+    const onScan = deps.onScan;
+    bot.command('scan', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const url = ctx.args[0];
+      if (url === undefined) {
+        await ctx.reply('Usage: /scan <https url>');
+        return;
+      }
+      await ctx.reply('🔒 Scanning…');
+      try {
+        await ctx.reply(await onScan(url, ctx.message.chat.id));
+      } catch (thrown) {
+        deps.logger?.error('scan failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not scan that URL.');
+      }
+    });
+    // The offline codec helpers ride along with the security suite.
+    bot.command('hash', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const [algo, ...rest] = ctx.args;
+      if (algo === undefined || rest.length === 0) {
+        await ctx.reply('Usage: /hash <md5|sha1|sha256|sha512> <text>');
+        return;
+      }
+      try {
+        await ctx.reply(hash(algo, rest.join(' ')));
+      } catch (thrown) {
+        await ctx.reply((thrown as Error).message);
+      }
+    });
+    const codecCmd = (
+      name: string,
+      fn: (kind: string, text: string) => string,
+    ): void => {
+      bot.command(name, async (ctx) => {
+        if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+        const [kind, ...rest] = ctx.args;
+        if (kind === undefined || rest.length === 0) {
+          await ctx.reply(`Usage: /${name} <base64|base64url|hex|url> <text>`);
+          return;
+        }
+        try {
+          await ctx.reply(fn(kind, rest.join(' ')));
+        } catch (thrown) {
+          await ctx.reply((thrown as Error).message);
+        }
+      });
+    };
+    codecCmd('encode', encode);
+    codecCmd('decode', decode);
+  }
+  if (deps.onCve !== undefined) {
+    const onCve = deps.onCve;
+    bot.command('cve', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const keyword = ctx.args.join(' ').trim();
+      if (keyword === '') {
+        await ctx.reply('Usage: /cve <keyword> (e.g. nginx, log4j)');
+        return;
+      }
+      await ctx.reply('🛡 Looking up CVEs…');
+      try {
+        await ctx.reply(await onCve(keyword));
+      } catch (thrown) {
+        deps.logger?.error('cve failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not fetch CVEs right now.');
+      }
+    });
+  }
+  if (deps.onArxiv !== undefined) {
+    const onArxiv = deps.onArxiv;
+    bot.command('arxiv', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const query = ctx.args.join(' ').trim();
+      if (query === '') {
+        await ctx.reply('Usage: /arxiv <topic>');
+        return;
+      }
+      await ctx.reply('📚 Searching arXiv…');
+      try {
+        await ctx.reply(await onArxiv(query));
+      } catch (thrown) {
+        deps.logger?.error('arxiv failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not search arXiv right now.');
+      }
+    });
+  }
+  if (deps.onApply !== undefined) {
+    const onApply = deps.onApply;
+    bot.command('apply', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const parsed = parseApply(ctx.args.join(' '));
+      if (parsed === undefined) {
+        await ctx.reply('Usage: /apply <Company> | <Role>');
+        return;
+      }
+      try {
+        await ctx.reply(
+          await onApply(ctx.message.chat.id, parsed.company, parsed.role),
+        );
+      } catch (thrown) {
+        deps.logger?.error('apply failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not log that application.');
+      }
+    });
+  }
+  if (deps.onApplications !== undefined) {
+    const onApplications = deps.onApplications;
+    bot.command('applications', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      try {
+        await ctx.reply(await onApplications(ctx.message.chat.id));
+      } catch (thrown) {
+        deps.logger?.error('applications failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not list your applications.');
+      }
+    });
+  }
+  if (deps.onAppStatus !== undefined) {
+    const onAppStatus = deps.onAppStatus;
+    bot.command('status', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const id = ctx.args[0];
+      const status = ctx.args[1];
+      if (id === undefined || status === undefined || !isAppStatus(status)) {
+        await ctx.reply(`Usage: /status <id> <${APP_STATUSES.join('|')}>`);
+        return;
+      }
+      try {
+        await ctx.reply(await onAppStatus(ctx.message.chat.id, id, status));
+      } catch (thrown) {
+        deps.logger?.error('status failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not update that application.');
+      }
+    });
   }
   bot.onText((ctx) => handleMessage(ctx, deps));
   return bot;

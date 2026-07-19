@@ -94,4 +94,22 @@ describe('buildTools', () => {
     });
     expect(withDiagram.map((tool) => tool.name)).toContain('diagram.render');
   });
+
+  it('includes security.cve and research.arxiv only when their ports are supplied', () => {
+    const base = {
+      fs: new MemoryFileSystem(),
+      http: FakeHttpClient.respondingWith(''),
+    };
+    const none = buildTools(base).map((tool) => tool.name);
+    expect(none).not.toContain('security.cve');
+    expect(none).not.toContain('research.arxiv');
+
+    const both = buildTools({
+      ...base,
+      cveSearch: () => Promise.resolve('cves'),
+      arxivSearch: () => Promise.resolve('papers'),
+    }).map((tool) => tool.name);
+    expect(both).toContain('security.cve');
+    expect(both).toContain('research.arxiv');
+  });
 });
