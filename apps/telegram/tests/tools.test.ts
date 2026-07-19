@@ -63,4 +63,22 @@ describe('buildTools', () => {
     const withPy = buildTools({ ...base, pythonRun: () => Promise.resolve('ok') });
     expect(withPy.map((tool) => tool.name)).toContain('python.run');
   });
+
+  it('includes image.ocr and text.translate only when their ports are supplied', () => {
+    const base = {
+      fs: new MemoryFileSystem(),
+      http: FakeHttpClient.respondingWith(''),
+    };
+    const none = buildTools(base).map((tool) => tool.name);
+    expect(none).not.toContain('image.ocr');
+    expect(none).not.toContain('text.translate');
+
+    const both = buildTools({
+      ...base,
+      ocrRun: () => Promise.resolve('text'),
+      translate: () => Promise.resolve('translated'),
+    }).map((tool) => tool.name);
+    expect(both).toContain('image.ocr');
+    expect(both).toContain('text.translate');
+  });
 });

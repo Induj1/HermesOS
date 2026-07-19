@@ -12,8 +12,11 @@ import type { AgentRuntime } from '@hermes/agent';
 import type { Logger } from '@hermes/kernel';
 import type { Handler, MessageContext } from '@hermes/telegram';
 import { AGENT_NAME, replyText } from './agent.js';
+import { isRemoveBgRequest } from './bg.js';
 import type { ConversationHistory } from './conversation.js';
+import { isOcrRequest } from './ocr.js';
 import { parseReminder } from './reminders.js';
+import { parseTranslateCommand } from './translate.js';
 import {
   isTransformRequest,
   largestPhoto,
@@ -48,8 +51,16 @@ export interface BotDeps {
     prompt: string,
     subject: string,
   ) => Promise<string>;
+  /** Read the text out of a photo (by Telegram file id) with OCR. */
+  readonly onOcr?: (fileId: string) => Promise<string>;
+  /** Remove a photo's background and send back a transparent cutout. */
+  readonly onRemoveBg?: (fileId: string, chatId: number) => Promise<void>;
   /** Transcribe a voice note (by Telegram file id) to text. */
   readonly onVoice?: (fileId: string) => Promise<string>;
+  /** Transcribe an uploaded audio/video file (by Telegram file id) to text. */
+  readonly onTranscribeFile?: (fileId: string) => Promise<string>;
+  /** Translate text into a target language. */
+  readonly onTranslate?: (targetLang: string, text: string) => Promise<string>;
   /** Transform a photo (img2img) by prompt and send the result. */
   readonly onImg2img?: (
     fileId: string,
@@ -79,6 +90,24 @@ function voiceFileId(message: unknown): string | undefined {
   return (message as { voice?: { file_id?: string } }).voice?.file_id;
 }
 
+/** An uploaded audio/video file's id (audio, video, video_note, or an A/V document). */
+function mediaFileId(message: unknown): string | undefined {
+  const m = message as {
+    audio?: { file_id?: string };
+    video?: { file_id?: string };
+    video_note?: { file_id?: string };
+    document?: { file_id?: string; mime_type?: string };
+  };
+  if (m.audio?.file_id !== undefined) return m.audio.file_id;
+  if (m.video?.file_id !== undefined) return m.video.file_id;
+  if (m.video_note?.file_id !== undefined) return m.video_note.file_id;
+  const doc = m.document;
+  if (doc?.file_id !== undefined && /^(audio|video)\//.test(doc.mime_type ?? '')) {
+    return doc.file_id;
+  }
+  return undefined;
+}
+
 /** The slice of `TelegramBot` this module needs — the two registration methods. */
 export interface CommandBot {
   command(name: string, handler: Handler): unknown;
@@ -103,6 +132,27 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
   const largest = largestPhoto(photo);
   if (largest !== undefined) {
     const cap = caption ?? '';
+    if (isRemoveBgRequest(cap) && deps.onRemoveBg !== undefined) {
+      await ctx.reply('✂️ Removing the background…');
+      try {
+        await deps.onRemoveBg(largest.file_id, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('removebg failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not remove the background.');
+      }
+      return;
+    }
+    if (isOcrRequest(cap) && deps.onOcr !== undefined) {
+      await ctx.reply('🔎 Reading the text…');
+      try {
+        const text = (await deps.onOcr(largest.file_id)).trim();
+        await ctx.reply(text === '' ? '(no text found in that image)' : text);
+      } catch (thrown) {
+        deps.logger?.error('ocr failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not read that image.');
+      }
+      return;
+    }
     if (isTransformRequest(cap) && deps.onImg2img !== undefined) {
       await ctx.reply('🎨 Reimagining your image…');
       try {
@@ -125,6 +175,23 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
       }
       return;
     }
+  }
+
+  // An uploaded audio/video file: transcribe it and hand back the transcript
+  // (unlike a voice note, we don't run it as a task — the file *is* the ask).
+  const mediaId = mediaFileId(ctx.message);
+  if (mediaId !== undefined && deps.onTranscribeFile !== undefined) {
+    await ctx.reply('Transcribing your file… (this can take a while)');
+    try {
+      const transcript = (await deps.onTranscribeFile(mediaId)).trim();
+      await ctx.reply(transcript === '' ? '(no speech detected)' : transcript);
+    } catch (thrown) {
+      deps.logger?.error('file transcription failed', {
+        error: (thrown as Error).message,
+      });
+      await ctx.reply('I could not transcribe that file.');
+    }
+    return;
   }
 
   // A voice note: transcribe it, then treat the transcript as the task.
@@ -312,6 +379,23 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('music failed', { error: (thrown as Error).message });
         await ctx.reply('Could not generate that music.');
+      }
+    });
+  }
+  if (deps.onTranslate !== undefined) {
+    const onTranslate = deps.onTranslate;
+    bot.command('translate', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const parsed = parseTranslateCommand(ctx.args);
+      if (parsed === undefined) {
+        await ctx.reply('Usage: /translate <language> <text>');
+        return;
+      }
+      try {
+        await ctx.reply(await onTranslate(parsed.to, parsed.text));
+      } catch (thrown) {
+        deps.logger?.error('translate failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not translate that.');
       }
     });
   }

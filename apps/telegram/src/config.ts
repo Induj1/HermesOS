@@ -209,6 +209,27 @@ export const telegramSchema = {
    */
   enablePython: boolean().default(false).describe('Enable the python.run tool.'),
 
+  /**
+   * OCR: read text out of photos (caption "read this") and an image.ocr tool.
+   * `ENABLE_OCR`. Requires the Tesseract binary on PATH (`brew install tesseract`).
+   */
+  enableOcr: boolean().default(false).describe('Enable OCR (needs tesseract).'),
+
+  /** The Tesseract OCR binary. `TESSERACT_BIN`. */
+  tesseractBin: string().default('tesseract').describe('Tesseract OCR binary.'),
+
+  /**
+   * Background removal for photos (caption "remove background"). `REMBG_SCRIPT`.
+   * Path to the rembg script; runs via IMAGEGEN_PYTHON. Empty disables it.
+   */
+  rembgScript: string().default('').describe('rembg cutout script path (empty = off).'),
+
+  /**
+   * Give the agent a text.translate tool and a /translate command. `ENABLE_TRANSLATE`.
+   * Uses the local Ollama model — no extra dependency — so on by default.
+   */
+  enableTranslate: boolean().default(true).describe('Enable translation.'),
+
   /** Serve a read-only dashboard on 127.0.0.1:PORT. `DASHBOARD_PORT`. 0 = off. */
   dashboardPort: integer().default(0).describe('Local dashboard port (0 = off).'),
 

@@ -17,8 +17,10 @@ import type { ShellExecutor } from '@hermes/tools-shell';
 import { browserTools, type BrowsePort } from './browser.js';
 import { docTools, type RenderPdfPort } from './doc.js';
 import { githubTools } from './github.js';
+import { ocrTools, type OcrRunPort } from './ocr.js';
 import { pythonTools, type PythonRunPort } from './python.js';
 import { searchTools } from './search.js';
+import { translateTools, type TranslatePort } from './translate.js';
 
 export interface ToolDeps {
   readonly fs: FileSystem;
@@ -33,6 +35,10 @@ export interface ToolDeps {
   readonly githubToken?: string;
   /** When present, a python.run tool (data analysis + charts) is included. */
   readonly pythonRun?: PythonRunPort;
+  /** When present, an image.ocr tool (read text from an image) is included. */
+  readonly ocrRun?: OcrRunPort;
+  /** When present, a text.translate tool is included. */
+  readonly translate?: TranslatePort;
 }
 
 /** Build the agent's tools over the given ports. Filesystem and HTTP always;
@@ -50,5 +56,7 @@ export function buildTools(deps: ToolDeps): readonly HermesTool[] {
     tools.push(...githubTools(deps.http, deps.githubToken));
   }
   if (deps.pythonRun !== undefined) tools.push(...pythonTools(deps.pythonRun));
+  if (deps.ocrRun !== undefined) tools.push(...ocrTools(deps.ocrRun));
+  if (deps.translate !== undefined) tools.push(...translateTools(deps.translate));
   return tools;
 }

@@ -14,6 +14,13 @@ export { browserTools, type BrowsePort } from './browser.js';
 export { docTools, type RenderPdfPort } from './doc.js';
 export { githubTools } from './github.js';
 export { pythonTools, type PythonRunPort } from './python.js';
+export { isOcrRequest, ocrTools, type OcrRunPort } from './ocr.js';
+export { isRemoveBgRequest } from './bg.js';
+export {
+  parseTranslateCommand,
+  translateTools,
+  type TranslatePort,
+} from './translate.js';
 export { lenientWorkspaceFs } from './workspace-fs.js';
 export {
   MemoryStore,

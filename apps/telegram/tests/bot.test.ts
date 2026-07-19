@@ -181,6 +181,136 @@ describe('handleMessage', () => {
     expect(f.replies.some((r) => /could not transform/i.test(r))).toBe(true);
   });
 
+  it('reads text from a photo captioned for OCR', async () => {
+    const { ctx, replies } = fakePhotoContext('read this', [
+      { file_id: 'doc', width: 800, height: 600 },
+    ]);
+    const seen: string[] = [];
+    await handleMessage(ctx, {
+      runtime: runtimeWith('unused'),
+      onOcr: (fileId) => {
+        seen.push(fileId);
+        return Promise.resolve('INVOICE #42');
+      },
+      onPhoto: () => Promise.resolve('should not run'),
+    });
+    expect(seen).toEqual(['doc']);
+    expect(replies).toContain('INVOICE #42');
+  });
+
+  it('reports empty OCR results and apologises on OCR failure', async () => {
+    const empty = fakePhotoContext('ocr', [{ file_id: 'a', width: 9, height: 9 }]);
+    await handleMessage(empty.ctx, {
+      runtime: runtimeWith('x'),
+      onOcr: () => Promise.resolve('   '),
+    });
+    expect(empty.replies.some((r) => /no text found/i.test(r))).toBe(true);
+
+    const fail = fakePhotoContext('read this', [{ file_id: 'b', width: 9, height: 9 }]);
+    await handleMessage(fail.ctx, {
+      runtime: runtimeWith('x'),
+      onOcr: () => Promise.reject(new Error('no tesseract')),
+      logger: spyLogger(),
+    });
+    expect(fail.replies.some((r) => /could not read/i.test(r))).toBe(true);
+  });
+
+  it('removes a photo background when the caption asks, and apologises on failure', async () => {
+    const seen: { id: string; chatId: number }[] = [];
+    const ok = fakePhotoContext('remove the background', [
+      { file_id: 'p', width: 800, height: 600 },
+    ]);
+    await handleMessage(ok.ctx, {
+      runtime: runtimeWith('x'),
+      onRemoveBg: (id, chatId) => {
+        seen.push({ id, chatId });
+        return Promise.resolve();
+      },
+      onPhoto: () => Promise.resolve('should not run'),
+    });
+    expect(seen).toEqual([{ id: 'p', chatId: 42 }]);
+
+    const fail = fakePhotoContext('removebg', [{ file_id: 'q', width: 9, height: 9 }]);
+    await handleMessage(fail.ctx, {
+      runtime: runtimeWith('x'),
+      onRemoveBg: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(fail.replies.some((r) => /could not remove the background/i.test(r))).toBe(
+      true,
+    );
+  });
+
+  it('transcribes an uploaded audio file and returns the transcript', async () => {
+    const replies: string[] = [];
+    const ctx = {
+      text: '',
+      command: undefined,
+      args: [],
+      message: { chat: { id: 42 }, audio: { file_id: 'song-1' } },
+      reply: (m: string) => {
+        replies.push(m);
+        return Promise.resolve(undefined);
+      },
+    } as unknown as MessageContext;
+
+    const seen: string[] = [];
+    await handleMessage(ctx, {
+      runtime: runtimeWith('should not run'),
+      onTranscribeFile: (fileId) => {
+        seen.push(fileId);
+        return Promise.resolve('the lyrics');
+      },
+    });
+    expect(seen).toEqual(['song-1']);
+    expect(replies).toContain('the lyrics');
+  });
+
+  it('handles an A/V document, empty transcript, and transcription failure', async () => {
+    const docCtx = (mime: string, fileId: string) => {
+      const replies: string[] = [];
+      const ctx = {
+        text: '',
+        command: undefined,
+        args: [],
+        message: {
+          chat: { id: 42 },
+          document: { file_id: fileId, mime_type: mime },
+        },
+        reply: (m: string) => {
+          replies.push(m);
+          return Promise.resolve(undefined);
+        },
+      } as unknown as MessageContext;
+      return { ctx, replies };
+    };
+
+    const empty = docCtx('video/mp4', 'clip');
+    await handleMessage(empty.ctx, {
+      runtime: runtimeWith('x'),
+      onTranscribeFile: () => Promise.resolve('  '),
+    });
+    expect(empty.replies.some((r) => /no speech detected/i.test(r))).toBe(true);
+
+    const fail = docCtx('audio/mpeg', 'track');
+    await handleMessage(fail.ctx, {
+      runtime: runtimeWith('x'),
+      onTranscribeFile: () => Promise.reject(new Error('no whisper')),
+      logger: spyLogger(),
+    });
+    expect(fail.replies.some((r) => /could not transcribe that file/i.test(r))).toBe(
+      true,
+    );
+
+    // A non-A/V document is not treated as media — falls through to the blank prompt.
+    const pdf = docCtx('application/pdf', 'paper');
+    await handleMessage(pdf.ctx, {
+      runtime: runtimeWith('x'),
+      onTranscribeFile: () => Promise.resolve('should not run'),
+    });
+    expect(pdf.replies.some((r) => /Send me a task/i.test(r))).toBe(true);
+  });
+
   it('transcribes a voice note and runs the agent on the transcript', async () => {
     const replies: string[] = [];
     const ctx = {
@@ -578,5 +708,50 @@ describe('registerHandlers', () => {
     const fail = ctxWith(['x']);
     await handlers['music']?.(fail.ctx);
     expect(fail.replies.some((r) => r.includes('Could not generate'))).toBe(true);
+  });
+
+  it('registers /translate: translates, shows usage, rejects, and handles failure', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const seen: { to: string; text: string }[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onTranslate: (to, text) => {
+        seen.push({ to, text });
+        return Promise.resolve(`[${to}] ${text}`);
+      },
+    });
+
+    const ok = ctxWith(['French', 'good', 'morning']);
+    await handlers['translate']?.(ok.ctx);
+    expect(seen).toEqual([{ to: 'French', text: 'good morning' }]);
+    expect(ok.replies).toContain('[French] good morning');
+
+    const usage = ctxWith(['French']);
+    await handlers['translate']?.(usage.ctx);
+    expect(usage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onTranslate: () => Promise.resolve('no'),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['French', 'hi'], 999);
+    await handlers['translate']?.(denied.ctx);
+    expect(denied.replies).toEqual([]);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onTranslate: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const fail = ctxWith(['French', 'hi']);
+    await handlers['translate']?.(fail.ctx);
+    expect(fail.replies.some((r) => r.includes('Could not translate'))).toBe(true);
   });
 });

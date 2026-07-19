@@ -180,6 +180,46 @@ export async function main(): Promise<void> {
     }
   };
 
+  // Ollama's native API root (drop the /v1 OpenAI suffix) — used for embeddings,
+  // vision, and translation, which call Ollama directly rather than via the model.
+  const ollamaRoot = config.ollamaBaseUrl.replace(/\/v1\/?$/, '');
+
+  // OCR a workspace image via Tesseract. Confined to the workspace: the path is
+  // resolved against it and must stay inside.
+  const ocrRun = async (wsPath: string): Promise<string> => {
+    const abs = path.resolve(workspaceDir, wsPath);
+    if (abs !== workspaceDir && !abs.startsWith(workspaceDir + path.sep)) {
+      throw new Error('path escapes the workspace');
+    }
+    const { stdout } = await execFileAsync(config.tesseractBin, [abs, 'stdout']);
+    return stdout.trim();
+  };
+
+  // Translate text with the local model — one stateless chat call, output only.
+  const translate = async (text: string, targetLang: string): Promise<string> => {
+    const res = await fetch(`${ollamaRoot}/api/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: config.ollamaModel,
+        stream: false,
+        messages: [
+          {
+            role: 'system',
+            content:
+              `You are a translation engine. Translate the user's message into ` +
+              `${targetLang}. Output ONLY the translation — no notes, no quotes, ` +
+              `no preamble, no explanation.`,
+          },
+          { role: 'user', content: text },
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error(`translate failed: ${String(res.status)}`);
+    const json = (await res.json()) as { message?: { content?: string } };
+    return (json.message?.content ?? '').trim();
+  };
+
   const tools = buildTools({
     fs,
     http,
@@ -187,12 +227,13 @@ export async function main(): Promise<void> {
     ...(shell === undefined ? {} : { shell }),
     ...(config.enableBrowser ? { browse, renderPdf } : {}),
     ...(config.enablePython && config.imagegenPython !== '' ? { pythonRun } : {}),
+    ...(config.enableOcr ? { ocrRun } : {}),
+    ...(config.enableTranslate ? { translate } : {}),
   });
   const executor = toolExecutor(tools, { logger });
 
   // Persistent memory: embed text with Ollama's native /api/embed and store it
   // under the data dir (outside the model-writable workspace).
-  const ollamaRoot = config.ollamaBaseUrl.replace(/\/v1\/?$/, '');
   const embed: EmbedFn = async (texts) => {
     const res = await fetch(`${ollamaRoot}/api/embed`, {
       method: 'POST',
@@ -297,6 +338,57 @@ export async function main(): Promise<void> {
   // A photo: download it via the raw Telegram Bot API and describe it with the
   // Ollama vision model (bypassing @hermes/model, which is text-only).
   const token = config.telegramBotToken;
+
+  // Download a Telegram file by id to a Buffer (getFile → file endpoint).
+  const downloadTgFile = async (fileId: string): Promise<Buffer> => {
+    const meta = (await (
+      await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`)
+    ).json()) as { result?: { file_path?: string } };
+    const filePath = meta.result?.file_path;
+    if (filePath === undefined) throw new Error('Telegram getFile returned no path');
+    const bytes = await (
+      await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`)
+    ).arrayBuffer();
+    return Buffer.from(bytes);
+  };
+
+  // A photo captioned "read this": download it and OCR it with Tesseract.
+  const onOcr = async (fileId: string): Promise<string> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-ocr-'));
+    try {
+      const img = path.join(dir, 'in.png');
+      await fsp.writeFile(img, await downloadTgFile(fileId));
+      const { stdout } = await execFileAsync(config.tesseractBin, [img, 'stdout']);
+      return stdout.trim();
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  // A photo captioned "remove background": run rembg, send back a PNG cutout as a
+  // document (sendPhoto would flatten the transparency).
+  const onRemoveBg = async (fileId: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-bg-'));
+    try {
+      const inPath = path.join(dir, 'in.png');
+      const out = path.join(dir, 'cutout.png');
+      await fsp.writeFile(inPath, await downloadTgFile(fileId));
+      await execFileAsync(config.imagegenPython, [config.rembgScript, inPath, out], {
+        timeout: 300_000,
+      });
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('document', new Blob([await fsp.readFile(out)]), 'cutout.png');
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`sendDocument failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   const onPhoto = async (fileId: string, prompt: string): Promise<string> => {
     const meta = (await (
       await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`)
@@ -529,7 +621,16 @@ export async function main(): Promise<void> {
     history: new ConversationHistory(),
     allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),
-    ...(config.whisperModel === '' ? {} : { onVoice }),
+    ...(config.enableOcr ? { onOcr } : {}),
+    ...(config.enableImagegen &&
+    config.imagegenPython !== '' &&
+    config.rembgScript !== ''
+      ? { onRemoveBg }
+      : {}),
+    ...(config.whisperModel === '' ? {} : { onVoice, onTranscribeFile: onVoice }),
+    ...(config.enableTranslate
+      ? { onTranslate: (to, text) => translate(text, to) }
+      : {}),
     ...(config.enableImagegen &&
     config.imagegenPython !== '' &&
     config.img2imgScript !== ''
