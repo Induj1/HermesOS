@@ -318,6 +318,7 @@ export async function main(): Promise<void> {
       REPO_SUBJECT,
     ]) as unknown as MemoryAdapter,
     recall: config.memoryRecall,
+    ownerProfile: config.ownerProfile,
   };
   const runtime = config.enableTeam
     ? buildTeamRuntime(runtimeDeps)

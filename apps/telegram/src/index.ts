@@ -43,6 +43,7 @@ export {
 } from './rag.js';
 export { shouldIngestPath } from './repo.js';
 export { isExtractRequest } from './extract.js';
+export { withOwnerProfile } from './profile.js';
 export {
   isInpaintRequest,
   isUpscaleRequest,

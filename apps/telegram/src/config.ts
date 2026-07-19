@@ -403,6 +403,13 @@ export const telegramSchema = {
 
   /** A name stamped on every log line. `SERVICE_NAME`. */
   serviceName: string().default('hermes-telegram'),
+
+  /**
+   * A free-text profile of the bot's owner (name, role, stack, preferences),
+   * woven into every agent's system prompt so replies are personalised.
+   * `OWNER_PROFILE`. Empty leaves the assistant generic.
+   */
+  ownerProfile: string().default('').describe('Owner profile for personalisation.'),
 };
 
 export type TelegramConfig = Config<typeof telegramSchema>;

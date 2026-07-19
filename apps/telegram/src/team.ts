@@ -24,6 +24,7 @@ import type {
 import type { Clock, Logger } from '@hermes/kernel';
 import type { ChatModel, ToolCallingModel } from '@hermes/model';
 import { systemPromptWithHistory } from './conversation.js';
+import { withOwnerProfile } from './profile.js';
 
 export const COORDINATOR = 'assistant';
 export type Specialist = 'researcher' | 'coder' | 'planner';
@@ -95,6 +96,8 @@ export interface TeamRuntimeDeps {
   readonly clock?: Clock;
   readonly memory?: MemoryAdapter;
   readonly recall?: number;
+  /** Free-text description of the owner, woven into every specialist's prompt. */
+  readonly ownerProfile?: string;
 }
 
 /** Build a coordinator + researcher/coder/planner team in one runtime. */
@@ -103,7 +106,9 @@ export function buildTeamRuntime(deps: TeamRuntimeDeps): AgentRuntime {
   const llm = (prompt: string): LlmReasoner =>
     new LlmReasoner({
       model: deps.model,
-      systemPrompt: systemPromptWithHistory(prompt),
+      systemPrompt: systemPromptWithHistory(
+        withOwnerProfile(prompt, deps.ownerProfile),
+      ),
       recall,
     });
   const specialist = (name: Specialist, description: string) =>

@@ -10,6 +10,7 @@ import type { AgentExecutor, AgentResult, MemoryAdapter } from '@hermes/agent';
 import type { Clock, Logger } from '@hermes/kernel';
 import type { ChatModel, ToolCallingModel } from '@hermes/model';
 import { systemPromptWithHistory } from './conversation.js';
+import { withOwnerProfile } from './profile.js';
 
 export const AGENT_NAME = 'assistant';
 
@@ -44,6 +45,8 @@ export interface AgentRuntimeDeps {
   readonly memory?: MemoryAdapter;
   /** How many memories to recall per turn. Ignored unless `memory` is set. */
   readonly recall?: number;
+  /** Free-text description of the owner, woven into the system prompt. */
+  readonly ownerProfile?: string;
 }
 
 /** Build a single-agent runtime: an LLM reasoner over the given model, with the
@@ -64,7 +67,9 @@ export function buildAgentRuntime(deps: AgentRuntimeDeps): AgentRuntime {
           'requests, and runs allowlisted shell commands to carry out tasks.',
         reasoner: new LlmReasoner({
           model: deps.model,
-          systemPrompt: systemPromptWithHistory(SYSTEM_PROMPT),
+          systemPrompt: systemPromptWithHistory(
+            withOwnerProfile(SYSTEM_PROMPT, deps.ownerProfile),
+          ),
           recall,
         }),
       }),
