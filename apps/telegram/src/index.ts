@@ -57,6 +57,7 @@ export {
 } from './codec.js';
 export {
   analyzeSecurityHeaders,
+  extractUrl,
   formatSecurityReport,
   type HeaderFinding,
   type SecurityReport,

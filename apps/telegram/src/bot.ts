@@ -17,6 +17,7 @@ import { isRemoveBgRequest } from './bg.js';
 import { buildCareerPrompt, type CareerTask } from './career.js';
 import { decode, encode, hash } from './codec.js';
 import { buildReviewPrompt } from './review.js';
+import { extractUrl } from './security.js';
 import type { ConversationHistory } from './conversation.js';
 import { isExtractRequest } from './extract.js';
 import {
@@ -765,9 +766,9 @@ export function registerHandlers<TBot extends CommandBot>(
     const onScan = deps.onScan;
     bot.command('scan', async (ctx) => {
       if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
-      const url = ctx.args[0];
+      const url = extractUrl(ctx.args.join(' '));
       if (url === undefined) {
-        await ctx.reply('Usage: /scan <https url>');
+        await ctx.reply('Usage: /scan <https url> (I could not find a URL in that)');
         return;
       }
       await ctx.reply('🔒 Scanning…');

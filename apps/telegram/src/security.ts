@@ -61,6 +61,14 @@ export function analyzeSecurityHeaders(
   return { findings, disclosures, score, grade: grade(score) };
 }
 
+/** Pull the first URL (or bare domain) out of free text, e.g. a /scan message. */
+export function extractUrl(text: string): string | undefined {
+  const withScheme = /https?:\/\/[^\s)<>"']+/i.exec(text);
+  if (withScheme !== null) return withScheme[0];
+  const bare = /(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s)<>"']*)?/i.exec(text);
+  return bare?.[0];
+}
+
 /** A phone-friendly summary of a security report for a URL. */
 export function formatSecurityReport(url: string, report: SecurityReport): string {
   const lines = [`🔒 Security headers for ${url} — grade ${report.grade}`];

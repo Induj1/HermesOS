@@ -1256,7 +1256,7 @@ describe('registerHandlers', () => {
       onArxiv: () => Promise.reject(new Error('boom')),
       logger: spyLogger(),
     });
-    const rf = ctxWith(['x']);
+    const rf = ctxWith(['https://x.test']);
     await handlers['scan']?.(rf.ctx);
     expect(rf.replies.some((r) => /Could not scan/i.test(r))).toBe(true);
     const revf = ctxWith(['code']);

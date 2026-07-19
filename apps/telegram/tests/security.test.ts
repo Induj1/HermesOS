@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeSecurityHeaders, formatSecurityReport } from '../src/security.js';
+import {
+  analyzeSecurityHeaders,
+  extractUrl,
+  formatSecurityReport,
+} from '../src/security.js';
+
+describe('extractUrl', () => {
+  it('pulls a URL out of surrounding text, stripping a trailing paren', () => {
+    expect(
+      extractUrl('HackVerse 2.0 | Powered by IBM (https://mitb.acm.org/hackverse/)'),
+    ).toBe('https://mitb.acm.org/hackverse/');
+    expect(extractUrl('check example.com/path please')).toBe('example.com/path');
+    expect(extractUrl('no url here at all')).toBeUndefined();
+  });
+});
 
 describe('analyzeSecurityHeaders', () => {
   it('grades a fully-hardened response as A', () => {
