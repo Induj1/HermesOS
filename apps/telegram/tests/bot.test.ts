@@ -467,4 +467,39 @@ describe('registerHandlers', () => {
     await handlers['imagine']?.(imgFail.ctx);
     expect(imgFail.replies.some((r) => r.includes('Could not generate'))).toBe(true);
   });
+
+  it('registers /get: sends a file, shows usage, and handles failure', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const got: string[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onGet: (file) => {
+        got.push(file);
+        return Promise.resolve();
+      },
+    });
+
+    const ok = ctxWith(['report.pdf']);
+    await handlers['get']?.(ok.ctx);
+    expect(got).toEqual(['report.pdf']);
+
+    const usage = ctxWith([]);
+    await handlers['get']?.(usage.ctx);
+    expect(usage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onGet: () => Promise.reject(new Error('missing')),
+      logger: spyLogger(),
+    });
+    const fail = ctxWith(['nope.txt']);
+    await handlers['get']?.(fail.ctx);
+    expect(fail.replies.some((r) => r.includes('Could not find'))).toBe(true);
+  });
 });

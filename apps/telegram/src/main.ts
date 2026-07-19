@@ -124,11 +124,29 @@ export async function main(): Promise<void> {
     }
   };
 
+  // Render an HTML document to a PDF in the workspace (via headless Chromium).
+  const renderPdf = async (html: string, filename: string): Promise<string> => {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle' });
+      const safe = path.basename(
+        filename.endsWith('.pdf') ? filename : `${filename}.pdf`,
+      );
+      const pdf = await page.pdf({ format: 'A4', printBackground: true });
+      await fs.writeFile(safe, Buffer.from(pdf));
+      return safe;
+    } finally {
+      await browser.close();
+    }
+  };
+
   const tools = buildTools({
     fs,
     http,
     ...(shell === undefined ? {} : { shell }),
-    ...(config.enableBrowser ? { browse } : {}),
+    ...(config.enableBrowser ? { browse, renderPdf } : {}),
   });
   const executor = toolExecutor(tools, { logger });
 
@@ -193,15 +211,24 @@ export async function main(): Promise<void> {
     return `⏰ Reminder set for ${humanDuration(ms)} from now: "${message}"`;
   };
 
-  // /ingest reads the docs folder, chunks + embeds each file into memory.
+  // /ingest reads the docs folder recursively, chunks + embeds each file.
   const docsDir = path.resolve(config.docsDir);
+  const walkFiles = async (dir: string): Promise<string[]> => {
+    const entries = await fsp.readdir(dir, { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) files.push(...(await walkFiles(full)));
+      else if (entry.isFile()) files.push(full);
+    }
+    return files;
+  };
   const onIngest = async (): Promise<string> => {
     await fsp.mkdir(docsDir, { recursive: true });
-    const names = await fsp.readdir(docsDir);
+    const files = await walkFiles(docsDir);
     const docs: { name: string; content: string }[] = [];
-    for (const name of names) {
-      const full = path.join(docsDir, name);
-      if (!(await fsp.stat(full)).isFile()) continue;
+    for (const full of files) {
+      const name = path.relative(docsDir, full); // relative path, for citation
       if (name.toLowerCase().endsWith('.pdf')) {
         // pdftotext (poppler) extracts text; "-" writes to stdout.
         const { stdout } = await execFileAsync('pdftotext', [full, '-']);
@@ -322,6 +349,19 @@ export async function main(): Promise<void> {
     if (!res.ok) throw new Error(`sendPhoto failed: ${String(res.status)}`);
   };
 
+  // /get: read a workspace file (confined by the rooted fs) and send it.
+  const onGet = async (filePath: string, chatId: number): Promise<void> => {
+    const bytes = await fs.readFile(filePath);
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    form.append('document', new Blob([Buffer.from(bytes)]), path.basename(filePath));
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) throw new Error(`sendDocument failed: ${String(res.status)}`);
+  };
+
   // /screenshot: render a page in headless Chromium and send a PNG.
   const onScreenshot = async (url: string, chatId: number): Promise<void> => {
     const { chromium } = await import('playwright');
@@ -368,6 +408,7 @@ export async function main(): Promise<void> {
     onIngest,
     onIngestUrl,
     onRemind,
+    onGet,
     history: new ConversationHistory(),
     allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),

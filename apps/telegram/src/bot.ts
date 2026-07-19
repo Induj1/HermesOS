@@ -33,6 +33,8 @@ export interface BotDeps {
   readonly onScreenshot?: (url: string, chatId: number) => Promise<void>;
   /** Generate an image from a prompt and send it to the chat as a photo. */
   readonly onImagine?: (prompt: string, chatId: number) => Promise<void>;
+  /** Send a workspace file to the chat as a document. */
+  readonly onGet?: (filePath: string, chatId: number) => Promise<void>;
   /** Describe a photo (by Telegram file id) with a vision model. */
   readonly onPhoto?: (
     fileId: string,
@@ -249,6 +251,23 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('imagine failed', { error: (thrown as Error).message });
         await ctx.reply('Could not generate that image.');
+      }
+    });
+  }
+  if (deps.onGet !== undefined) {
+    const onGet = deps.onGet;
+    bot.command('get', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const file = ctx.args[0];
+      if (file === undefined) {
+        await ctx.reply('Usage: /get <path> (a file in the workspace)');
+        return;
+      }
+      try {
+        await onGet(file, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('get failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not find or send that file.');
       }
     });
   }

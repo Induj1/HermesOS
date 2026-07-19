@@ -9,6 +9,7 @@
 export { telegramSchema, type TelegramConfig } from './config.js';
 export { buildTools, type ToolDeps } from './tools.js';
 export { browserTools, type BrowsePort } from './browser.js';
+export { docTools, type RenderPdfPort } from './doc.js';
 export { lenientWorkspaceFs } from './workspace-fs.js';
 export {
   MemoryStore,
