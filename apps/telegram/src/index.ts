@@ -65,3 +65,9 @@ export {
   type BotDeps,
   type CommandBot,
 } from './bot.js';
+export {
+  ConversationHistory,
+  systemPromptWithHistory,
+  type Role,
+  type Turn,
+} from './conversation.js';

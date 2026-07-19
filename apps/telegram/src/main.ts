@@ -32,6 +32,7 @@ import {
 } from './briefing.js';
 import { registerHandlers } from './bot.js';
 import { telegramSchema } from './config.js';
+import { ConversationHistory } from './conversation.js';
 import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
 import { DOCS_SUBJECT, htmlToText, ingestDocs } from './rag.js';
@@ -367,6 +368,7 @@ export async function main(): Promise<void> {
     onIngest,
     onIngestUrl,
     onRemind,
+    history: new ConversationHistory(),
     allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),
     ...(config.whisperModel === '' ? {} : { onVoice }),

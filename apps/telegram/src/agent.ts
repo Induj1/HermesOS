@@ -9,6 +9,7 @@ import { AgentRuntime, defineAgent, LlmReasoner } from '@hermes/agent';
 import type { AgentExecutor, AgentResult, MemoryAdapter } from '@hermes/agent';
 import type { Clock, Logger } from '@hermes/kernel';
 import type { ChatModel, ToolCallingModel } from '@hermes/model';
+import { systemPromptWithHistory } from './conversation.js';
 
 export const AGENT_NAME = 'assistant';
 
@@ -63,7 +64,7 @@ export function buildAgentRuntime(deps: AgentRuntimeDeps): AgentRuntime {
           'requests, and runs allowlisted shell commands to carry out tasks.',
         reasoner: new LlmReasoner({
           model: deps.model,
-          systemPrompt: () => SYSTEM_PROMPT,
+          systemPrompt: systemPromptWithHistory(SYSTEM_PROMPT),
           recall,
         }),
       }),

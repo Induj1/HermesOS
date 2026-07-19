@@ -12,6 +12,7 @@ import type { AgentRuntime } from '@hermes/agent';
 import type { Logger } from '@hermes/kernel';
 import type { Handler, MessageContext } from '@hermes/telegram';
 import { AGENT_NAME, replyText } from './agent.js';
+import type { ConversationHistory } from './conversation.js';
 import { parseReminder } from './reminders.js';
 import { largestPhoto, visionPrompt, type PhotoSize } from './vision.js';
 
@@ -44,6 +45,8 @@ export interface BotDeps {
   readonly speak?: (chatId: number, text: string) => Promise<void>;
   /** Chat ids allowed to use the bot. Empty/undefined = everyone. */
   readonly allowedChatIds?: readonly string[];
+  /** Short-term per-chat conversation history for coherent follow-ups. */
+  readonly history?: ConversationHistory;
 }
 
 /** Whether a chat may use the bot. An empty allowlist permits everyone. */
@@ -118,12 +121,17 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
   }
 
   try {
+    const historyText = deps.history?.render(subject) ?? '';
     const result = await deps.runtime.run(deps.agentName ?? AGENT_NAME, {
       input: text,
       subject,
+      ...(historyText === '' ? {} : { context: { history: historyText } }),
     });
     const reply = replyText(result);
     await ctx.reply(reply);
+    // Record the exchange for coherent follow-ups.
+    deps.history?.add(subject, 'user', text);
+    deps.history?.add(subject, 'assistant', reply);
     // If they spoke to us, speak back.
     if (cameByVoice && deps.speak !== undefined) {
       try {

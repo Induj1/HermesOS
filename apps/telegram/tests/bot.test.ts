@@ -7,6 +7,7 @@ import {
   registerHandlers,
   type CommandBot,
 } from '../src/bot.js';
+import { ConversationHistory } from '../src/conversation.js';
 import { toolExecutor } from '../src/executor.js';
 import { answer, BrokenModel, ScriptedModel, spyLogger } from './helpers.js';
 
@@ -93,6 +94,19 @@ describe('handleMessage', () => {
     await handleMessage(ctx, { runtime, logger: spyLogger() });
 
     expect(replies[0]).toMatch(/something went wrong/i);
+  });
+
+  it('threads conversation history and records the exchange', async () => {
+    const { ctx } = fakeContext('second question');
+    const history = new ConversationHistory();
+    history.add('42', 'user', 'first question');
+    history.add('42', 'assistant', 'first answer');
+
+    await handleMessage(ctx, { runtime: runtimeWith('second answer'), history });
+
+    const turns = history.recent('42');
+    expect(turns.at(-2)).toEqual({ role: 'user', content: 'second question' });
+    expect(turns.at(-1)).toEqual({ role: 'assistant', content: 'second answer' });
   });
 
   it('records the message via the remember hook, scoped by chat id', async () => {

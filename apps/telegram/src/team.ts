@@ -23,6 +23,7 @@ import type {
 } from '@hermes/agent';
 import type { Clock, Logger } from '@hermes/kernel';
 import type { ChatModel, ToolCallingModel } from '@hermes/model';
+import { systemPromptWithHistory } from './conversation.js';
 
 export const COORDINATOR = 'assistant';
 export type Specialist = 'researcher' | 'coder' | 'planner';
@@ -100,7 +101,11 @@ export interface TeamRuntimeDeps {
 export function buildTeamRuntime(deps: TeamRuntimeDeps): AgentRuntime {
   const recall = deps.memory === undefined ? 0 : (deps.recall ?? 5);
   const llm = (prompt: string): LlmReasoner =>
-    new LlmReasoner({ model: deps.model, systemPrompt: () => prompt, recall });
+    new LlmReasoner({
+      model: deps.model,
+      systemPrompt: systemPromptWithHistory(prompt),
+      recall,
+    });
   const specialist = (name: Specialist, description: string) =>
     defineAgent({ name, description, reasoner: llm(SPECIALIST_PROMPTS[name]) });
 
