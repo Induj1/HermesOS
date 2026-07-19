@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { largestPhoto, visionPrompt } from '../src/vision.js';
+import { isTransformRequest, largestPhoto, visionPrompt } from '../src/vision.js';
+
+describe('isTransformRequest', () => {
+  it('detects transform captions and ignores questions', () => {
+    expect(isTransformRequest('make it a watercolor')).toBe(true);
+    expect(isTransformRequest('turn this into anime')).toBe(true);
+    expect(isTransformRequest('in the style of Van Gogh')).toBe(true);
+    expect(isTransformRequest('what is this?')).toBe(false);
+    expect(isTransformRequest('')).toBe(false);
+  });
+});
 
 describe('largestPhoto', () => {
   it('returns undefined when there are no photos', () => {

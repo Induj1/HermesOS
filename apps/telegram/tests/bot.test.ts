@@ -139,6 +139,48 @@ describe('handleMessage', () => {
     expect(replies).toContain('A photo of a cat.');
   });
 
+  it('routes a transform-captioned photo to img2img, else to vision', async () => {
+    const img2img: { id: string; prompt: string }[] = [];
+    const vision: string[] = [];
+
+    const t = fakePhotoContext('make it a watercolor', [
+      { file_id: 'p', width: 800, height: 600 },
+    ]);
+    await handleMessage(t.ctx, {
+      runtime: runtimeWith('x'),
+      onImg2img: (id, prompt) => {
+        img2img.push({ id, prompt });
+        return Promise.resolve();
+      },
+      onPhoto: () => Promise.resolve('desc'),
+    });
+    expect(img2img).toEqual([{ id: 'p', prompt: 'make it a watercolor' }]);
+
+    const q = fakePhotoContext('what is this?', [
+      { file_id: 'p2', width: 800, height: 600 },
+    ]);
+    await handleMessage(q.ctx, {
+      runtime: runtimeWith('x'),
+      onImg2img: () => Promise.resolve(),
+      onPhoto: (id) => {
+        vision.push(id);
+        return Promise.resolve('a cat');
+      },
+    });
+    expect(vision).toEqual(['p2']);
+
+    // img2img failure apologises.
+    const f = fakePhotoContext('make it anime', [
+      { file_id: 'p3', width: 1, height: 1 },
+    ]);
+    await handleMessage(f.ctx, {
+      runtime: runtimeWith('x'),
+      onImg2img: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(f.replies.some((r) => /could not transform/i.test(r))).toBe(true);
+  });
+
   it('transcribes a voice note and runs the agent on the transcript', async () => {
     const replies: string[] = [];
     const ctx = {

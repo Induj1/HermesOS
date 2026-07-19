@@ -65,6 +65,12 @@ export interface MemoryStoreOptions {
   readonly clock: Clock;
   /** Injected for deterministic ids in tests. Defaults to time + counter. */
   readonly nextId?: () => string;
+  /**
+   * Skip storing a memory whose embedding is at least this similar to an
+   * existing one for the same subject (default 0.97). Keeps the store from
+   * bloating with repeated near-identical messages.
+   */
+  readonly dedupeThreshold?: number;
 }
 
 /** Cosine similarity of two vectors, clamped to [-1, 1]; 0 for a zero vector. */
@@ -90,11 +96,13 @@ export class MemoryStore {
   readonly #filePath: string;
   readonly #clock: Clock;
   readonly #nextId: () => string;
+  readonly #dedupeThreshold: number;
   #items: MemoryItem[] = [];
   #counter = 0;
 
   private constructor(options: MemoryStoreOptions, items: MemoryItem[]) {
     this.#embed = options.embed;
+    this.#dedupeThreshold = options.dedupeThreshold ?? 0.97;
     this.#filePath = options.filePath;
     this.#clock = options.clock;
     this.#items = items;
@@ -130,15 +138,24 @@ export class MemoryStore {
     );
   }
 
-  /** Embed and persist one memory. */
+  /** Embed and persist one memory (skipping a near-duplicate for the subject). */
   async remember(memory: NewMemory): Promise<MemoryItem> {
     const [embedding] = await this.#embed([memory.content]);
+    const vector = embedding ?? [];
+
+    const duplicate = this.#items.find(
+      (item) =>
+        item.subject === memory.subject &&
+        cosineSimilarity(item.embedding, vector) >= this.#dedupeThreshold,
+    );
+    if (duplicate !== undefined) return duplicate;
+
     const item: MemoryItem = {
       id: this.#nextId(),
       subject: memory.subject,
       kind: memory.kind,
       content: memory.content,
-      embedding: embedding ?? [],
+      embedding: vector,
       createdAt: this.#clock.now(),
     };
     this.#items.push(item);

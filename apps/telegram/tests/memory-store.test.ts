@@ -115,6 +115,27 @@ describe('MemoryStore', () => {
     expect(await store.recall('A', 'x')).toEqual([]); // query embedding is undefined
   });
 
+  it('deduplicates near-identical memories for a subject', async () => {
+    const store = await MemoryStore.load(opts());
+    const first = await store.remember({
+      subject: 'A',
+      kind: 'fact',
+      content: 'my name is Induj',
+    });
+    const again = await store.remember({
+      subject: 'A',
+      kind: 'fact',
+      content: 'my name is Induj',
+    });
+    expect(again.id).toBe(first.id); // returns the existing one
+    expect(store.size).toBe(1);
+
+    // A different subject or different content still stores.
+    await store.remember({ subject: 'B', kind: 'fact', content: 'my name is Induj' });
+    await store.remember({ subject: 'A', kind: 'fact', content: 'I like coffee' });
+    expect(store.size).toBe(3);
+  });
+
   it('lists distinct real subjects, excluding internal ones', async () => {
     const store = await MemoryStore.load(opts());
     await store.remember({ subject: 'chat-1', kind: 'fact', content: 'a' });

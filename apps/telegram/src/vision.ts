@@ -25,6 +25,13 @@ export function largestPhoto(
   )[photos.length - 1];
 }
 
+/** Does a photo caption ask to *transform* the image (img2img) vs describe it? */
+export function isTransformRequest(caption: string): boolean {
+  return /\b(make|turn|convert|transform|redraw|restyle|reimagine|styli[sz]e|as an?|in the style of|watercolou?r|anime|cartoon|oil painting|sketch|pixar|cyberpunk|van gogh|painting|render)\b/i.test(
+    caption.trim(),
+  );
+}
+
 /** The prompt to send with an image — the caption, or a sensible default. */
 export function visionPrompt(caption: string): string {
   const trimmed = caption.trim();

@@ -390,6 +390,39 @@ export async function main(): Promise<void> {
     }
   };
 
+  // Photo + transform caption: download it, run SD img2img, send the result.
+  const onImg2img = async (
+    fileId: string,
+    prompt: string,
+    chatId: number,
+  ): Promise<void> => {
+    const meta = (await (
+      await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`)
+    ).json()) as { result?: { file_path?: string } };
+    const filePath = meta.result?.file_path;
+    if (filePath === undefined) throw new Error('Telegram getFile returned no path');
+    const bytes = await (
+      await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`)
+    ).arrayBuffer();
+
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-i2i-'));
+    try {
+      const inPath = path.join(dir, 'in.png');
+      const out = path.join(dir, 'out.png');
+      await fsp.writeFile(inPath, Buffer.from(bytes));
+      await execFileAsync(
+        config.imagegenPython,
+        [config.img2imgScript, prompt, inPath, out],
+        {
+          timeout: 300_000,
+        },
+      );
+      await sendPhoto(chatId, await fsp.readFile(out), 'image.png');
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
     token: config.telegramBotToken,
@@ -413,6 +446,11 @@ export async function main(): Promise<void> {
     allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),
     ...(config.whisperModel === '' ? {} : { onVoice }),
+    ...(config.enableImagegen &&
+    config.imagegenPython !== '' &&
+    config.img2imgScript !== ''
+      ? { onImg2img }
+      : {}),
     ...(config.enableVoiceReplies ? { speak } : {}),
     ...(config.enableBrowser ? { onScreenshot } : {}),
     ...(config.enableImagegen &&

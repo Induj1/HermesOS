@@ -179,6 +179,9 @@ export const telegramSchema = {
   /** The image-generation script. `IMAGEGEN_SCRIPT`. Called: python script <prompt> <out.png>. */
   imagegenScript: string().default('').describe('Path to the SD generate script.'),
 
+  /** The img2img script. `IMG2IMG_SCRIPT`. Called: python script <prompt> <in.png> <out.png>. */
+  img2imgScript: string().default('').describe('Path to the SD img2img script.'),
+
   /**
    * Where persistent data (the memory store) lives. `DATA_DIR`. Kept out of the
    * agent's writable workspace so the model cannot tamper with its own memory.

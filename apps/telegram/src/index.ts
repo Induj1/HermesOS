@@ -39,7 +39,12 @@ export {
   type Specialist,
   type TeamRuntimeDeps,
 } from './team.js';
-export { largestPhoto, visionPrompt, type PhotoSize } from './vision.js';
+export {
+  isTransformRequest,
+  largestPhoto,
+  visionPrompt,
+  type PhotoSize,
+} from './vision.js';
 export {
   humanDuration,
   parseDuration,

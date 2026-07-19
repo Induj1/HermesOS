@@ -14,7 +14,12 @@ import type { Handler, MessageContext } from '@hermes/telegram';
 import { AGENT_NAME, replyText } from './agent.js';
 import type { ConversationHistory } from './conversation.js';
 import { parseReminder } from './reminders.js';
-import { largestPhoto, visionPrompt, type PhotoSize } from './vision.js';
+import {
+  isTransformRequest,
+  largestPhoto,
+  visionPrompt,
+  type PhotoSize,
+} from './vision.js';
 
 export interface BotDeps {
   readonly runtime: AgentRuntime;
@@ -43,6 +48,12 @@ export interface BotDeps {
   ) => Promise<string>;
   /** Transcribe a voice note (by Telegram file id) to text. */
   readonly onVoice?: (fileId: string) => Promise<string>;
+  /** Transform a photo (img2img) by prompt and send the result. */
+  readonly onImg2img?: (
+    fileId: string,
+    prompt: string,
+    chatId: number,
+  ) => Promise<void>;
   /** Speak a reply back to a chat as a voice note. */
   readonly speak?: (chatId: number, text: string) => Promise<void>;
   /** Chat ids allowed to use the bot. Empty/undefined = everyone. */
@@ -85,20 +96,33 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
     return;
   }
 
-  // A photo message: describe it with the vision model instead of the agent.
+  // A photo: transform it (img2img) if the caption asks, else describe it.
   const { photo, caption } = photoOf(ctx.message);
   const largest = largestPhoto(photo);
-  if (largest !== undefined && deps.onPhoto !== undefined) {
-    await ctx.reply('Looking at your image…');
-    try {
-      await ctx.reply(
-        await deps.onPhoto(largest.file_id, visionPrompt(caption ?? ''), subject),
-      );
-    } catch (thrown) {
-      deps.logger?.error('vision failed', { error: (thrown as Error).message });
-      await ctx.reply('I could not process that image.');
+  if (largest !== undefined) {
+    const cap = caption ?? '';
+    if (isTransformRequest(cap) && deps.onImg2img !== undefined) {
+      await ctx.reply('🎨 Reimagining your image…');
+      try {
+        await deps.onImg2img(largest.file_id, cap, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('img2img failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not transform that image.');
+      }
+      return;
     }
-    return;
+    if (deps.onPhoto !== undefined) {
+      await ctx.reply('Looking at your image…');
+      try {
+        await ctx.reply(
+          await deps.onPhoto(largest.file_id, visionPrompt(cap), subject),
+        );
+      } catch (thrown) {
+        deps.logger?.error('vision failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not process that image.');
+      }
+      return;
+    }
   }
 
   // A voice note: transcribe it, then treat the transcript as the task.
