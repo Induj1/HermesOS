@@ -182,6 +182,9 @@ export const telegramSchema = {
   /** The img2img script. `IMG2IMG_SCRIPT`. Called: python script <prompt> <in.png> <out.png>. */
   img2imgScript: string().default('').describe('Path to the SD img2img script.'),
 
+  /** GitHub token for the GitHub tools. `GITHUB_TOKEN`. Empty disables them. */
+  githubToken: string().secret().default('').describe('GitHub token (empty = off).'),
+
   /**
    * Where persistent data (the memory store) lives. `DATA_DIR`. Kept out of the
    * agent's writable workspace so the model cannot tamper with its own memory.

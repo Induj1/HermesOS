@@ -145,6 +145,7 @@ export async function main(): Promise<void> {
   const tools = buildTools({
     fs,
     http,
+    githubToken: config.githubToken,
     ...(shell === undefined ? {} : { shell }),
     ...(config.enableBrowser ? { browse, renderPdf } : {}),
   });

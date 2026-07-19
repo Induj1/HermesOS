@@ -35,4 +35,22 @@ describe('buildTools', () => {
     });
     expect(tools.map((tool) => tool.name)).toContain('web.browse');
   });
+
+  it('includes doc and github tools when configured, and omits github with no token', () => {
+    const names = buildTools({
+      fs: new MemoryFileSystem(),
+      http: FakeHttpClient.respondingWith(''),
+      renderPdf: () => Promise.resolve('x.pdf'),
+      githubToken: 'tok',
+    }).map((tool) => tool.name);
+    expect(names).toContain('doc.pdf');
+    expect(names).toContain('github.repo');
+
+    const noGithub = buildTools({
+      fs: new MemoryFileSystem(),
+      http: FakeHttpClient.respondingWith(''),
+      githubToken: '',
+    }).map((tool) => tool.name);
+    expect(noGithub).not.toContain('github.repo');
+  });
 });
