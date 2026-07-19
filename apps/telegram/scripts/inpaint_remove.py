@@ -27,13 +27,21 @@ seg = CLIPSegForImageSegmentation.from_pretrained("CIDAS/clipseg-rd64-refined")
 inputs = seg_proc(text=[target], images=[image], return_tensors="pt")
 with torch.no_grad():
     logits = seg(**inputs).logits
-prob = torch.sigmoid(logits).numpy()
+# logits may be (H, W) or (N, H, W); squeeze to a single 2D probability map.
+prob = torch.sigmoid(logits).squeeze().cpu().numpy()
+if prob.ndim != 2:
+    prob = prob.reshape(prob.shape[-2], prob.shape[-1])
 mask = (prob > 0.4).astype(np.uint8) * 255
-mask_img = Image.fromarray(mask).resize((W, H)).filter(ImageFilter.MaxFilter(15))
+mask_img = (
+    Image.fromarray(mask, mode="L").resize((W, H)).filter(ImageFilter.MaxFilter(15))
+)
 
 # 2) Inpaint the masked region at 512px, then restore the original size.
 pipe = StableDiffusionInpaintPipeline.from_pretrained(
-    "runwayml/stable-diffusion-inpainting", torch_dtype=torch.float32
+    "runwayml/stable-diffusion-inpainting",
+    torch_dtype=torch.float32,
+    safety_checker=None,
+    requires_safety_checker=False,
 ).to(device)
 pipe.set_progress_bar_config(disable=True)
 work = image.resize((512, 512))
