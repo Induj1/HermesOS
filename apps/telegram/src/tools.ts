@@ -14,6 +14,7 @@ import { httpTools } from '@hermes/tools-http';
 import type { HttpClient } from '@hermes/tools-http';
 import { shellTools } from '@hermes/tools-shell';
 import type { ShellExecutor } from '@hermes/tools-shell';
+import { searchTools } from './search.js';
 
 export interface ToolDeps {
   readonly fs: FileSystem;
@@ -25,7 +26,11 @@ export interface ToolDeps {
 /** Build the agent's tools over the given ports. Filesystem and HTTP always;
  *  shell only when an executor is supplied. */
 export function buildTools(deps: ToolDeps): readonly HermesTool[] {
-  const tools: HermesTool[] = [...filesystemTools(deps.fs), ...httpTools(deps.http)];
+  const tools: HermesTool[] = [
+    ...filesystemTools(deps.fs),
+    ...httpTools(deps.http),
+    ...searchTools(deps.http),
+  ];
   if (deps.shell !== undefined) tools.push(...shellTools(deps.shell));
   return tools;
 }

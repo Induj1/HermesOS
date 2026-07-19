@@ -36,6 +36,12 @@ export {
   type TeamRuntimeDeps,
 } from './team.js';
 export { largestPhoto, visionPrompt, type PhotoSize } from './vision.js';
+export {
+  formatResults,
+  parseDuckDuckGo,
+  searchTools,
+  type SearchResult,
+} from './search.js';
 export { toolExecutor, type ExecutorDeps } from './executor.js';
 export {
   AGENT_NAME,
