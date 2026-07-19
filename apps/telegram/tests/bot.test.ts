@@ -198,6 +198,31 @@ describe('handleMessage', () => {
     expect(replies).toContain('INVOICE #42');
   });
 
+  it('extracts structured JSON from a receipt-captioned photo', async () => {
+    const seen: string[] = [];
+    const ok = fakePhotoContext('receipt', [{ file_id: 'r', width: 600, height: 800 }]);
+    await handleMessage(ok.ctx, {
+      runtime: runtimeWith('x'),
+      onExtract: (fileId) => {
+        seen.push(fileId);
+        return Promise.resolve('{"merchant":"Cafe","total":9.5}');
+      },
+      onOcr: () => Promise.resolve('should not run'),
+    });
+    expect(seen).toEqual(['r']);
+    expect(ok.replies).toContain('{"merchant":"Cafe","total":9.5}');
+
+    const fail = fakePhotoContext('extract the fields', [
+      { file_id: 'f', width: 9, height: 9 },
+    ]);
+    await handleMessage(fail.ctx, {
+      runtime: runtimeWith('x'),
+      onExtract: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(fail.replies.some((r) => /could not extract/i.test(r))).toBe(true);
+  });
+
   it('reports empty OCR results and apologises on OCR failure', async () => {
     const empty = fakePhotoContext('ocr', [{ file_id: 'a', width: 9, height: 9 }]);
     await handleMessage(empty.ctx, {
@@ -740,6 +765,116 @@ describe('registerHandlers', () => {
     const fail = ctxWith(['x']);
     await handlers['music']?.(fail.ctx);
     expect(fail.replies.some((r) => r.includes('Could not generate'))).toBe(true);
+  });
+
+  it('registers /every, /schedules, /unschedule recurring-task commands', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const scheduled: { cron: string; prompt: string }[] = [];
+    const cancelled: string[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onSchedule: (_chatId, cron, prompt) => {
+        scheduled.push({ cron, prompt });
+        return Promise.resolve(`Scheduled [${cron}]`);
+      },
+      onSchedules: () => Promise.resolve('• job_1 — [0 9 * * 1-5] digest'),
+      onUnschedule: (_chatId, id) => {
+        cancelled.push(id);
+        return Promise.resolve(`Cancelled ${id}`);
+      },
+    });
+
+    const ok = ctxWith(['weekdays', '9am', 'summarise', 'issues']);
+    await handlers['every']?.(ok.ctx);
+    expect(scheduled).toEqual([{ cron: '0 9 * * 1-5', prompt: 'summarise issues' }]);
+
+    const bad = ctxWith(['gibberish']);
+    await handlers['every']?.(bad.ctx);
+    expect(bad.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    const list = ctxWith([]);
+    await handlers['schedules']?.(list.ctx);
+    expect(list.replies.some((r) => r.includes('job_1'))).toBe(true);
+
+    const cancel = ctxWith(['job_1']);
+    await handlers['unschedule']?.(cancel.ctx);
+    expect(cancelled).toEqual(['job_1']);
+
+    const cancelUsage = ctxWith([]);
+    await handlers['unschedule']?.(cancelUsage.ctx);
+    expect(cancelUsage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    // Not on the allowlist → ignored.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onSchedule: () => Promise.resolve('no'),
+      onSchedules: () => Promise.resolve('no'),
+      onUnschedule: () => Promise.resolve('no'),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['weekdays', '9am', 'x'], 999);
+    await handlers['every']?.(denied.ctx);
+    await handlers['schedules']?.(denied.ctx);
+    await handlers['unschedule']?.(ctxWith(['job_1'], 999).ctx);
+    expect(denied.replies).toEqual([]);
+
+    // Failures apologise.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onSchedule: () => Promise.reject(new Error('boom')),
+      onSchedules: () => Promise.reject(new Error('boom')),
+      onUnschedule: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const sf = ctxWith(['hourly', 'do', 'thing']);
+    await handlers['every']?.(sf.ctx);
+    expect(sf.replies.some((r) => r.includes('Could not schedule'))).toBe(true);
+    const lf = ctxWith([]);
+    await handlers['schedules']?.(lf.ctx);
+    expect(lf.replies.some((r) => r.includes('Could not list'))).toBe(true);
+    const uf = ctxWith(['job_1']);
+    await handlers['unschedule']?.(uf.ctx);
+    expect(uf.replies.some((r) => r.includes('Could not cancel'))).toBe(true);
+  });
+
+  it('registers /musicvideo: runs, shows usage, and handles failure', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const made: string[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onMusicVideo: (prompt) => {
+        made.push(prompt);
+        return Promise.resolve();
+      },
+    });
+    const ok = ctxWith(['sunset', 'over', 'the', 'ocean']);
+    await handlers['musicvideo']?.(ok.ctx);
+    expect(made).toEqual(['sunset over the ocean']);
+
+    const usage = ctxWith([]);
+    await handlers['musicvideo']?.(usage.ctx);
+    expect(usage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onMusicVideo: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const fail = ctxWith(['x']);
+    await handlers['musicvideo']?.(fail.ctx);
+    expect(fail.replies.some((r) => r.includes('Could not produce'))).toBe(true);
   });
 
   it('registers /repo, /audiobook, /video: run, show usage, reject, and fail', async () => {

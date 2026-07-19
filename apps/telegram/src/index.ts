@@ -42,6 +42,14 @@ export {
   type Doc,
 } from './rag.js';
 export { shouldIngestPath } from './repo.js';
+export { isExtractRequest } from './extract.js';
+export {
+  formatSchedule,
+  localCronToUtc,
+  parseSchedule,
+  type ParsedSchedule,
+  type ScheduledTask,
+} from './schedules.js';
 export {
   formatBriefing,
   formatCiAlert,

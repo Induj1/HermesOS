@@ -14,9 +14,11 @@ import type { Handler, MessageContext } from '@hermes/telegram';
 import { AGENT_NAME, replyText } from './agent.js';
 import { isRemoveBgRequest } from './bg.js';
 import type { ConversationHistory } from './conversation.js';
+import { isExtractRequest } from './extract.js';
 import { isOcrRequest } from './ocr.js';
 import { isQrScanRequest } from './qr.js';
 import { parseReminder } from './reminders.js';
+import { parseSchedule } from './schedules.js';
 import { parseTranslateCommand } from './translate.js';
 import {
   isTransformRequest,
@@ -42,6 +44,18 @@ export interface BotDeps {
   readonly onAudiobook?: (path: string, chatId: number) => Promise<void>;
   /** Generate a short animated clip from a prompt and send it. */
   readonly onVideo?: (prompt: string, chatId: number) => Promise<void>;
+  /** Generate a music video (clip + soundtrack) from a prompt and send it. */
+  readonly onMusicVideo?: (prompt: string, chatId: number) => Promise<void>;
+  /** Register a recurring agent task (local-time cron); returns an ack. */
+  readonly onSchedule?: (
+    chatId: number,
+    cron: string,
+    prompt: string,
+  ) => Promise<string>;
+  /** List a chat's recurring tasks. */
+  readonly onSchedules?: (chatId: number) => Promise<string>;
+  /** Cancel a recurring task by id. */
+  readonly onUnschedule?: (chatId: number, id: string) => Promise<string>;
   /** Schedule a reminder; returns an acknowledgement. */
   readonly onRemind?: (chatId: number, ms: number, message: string) => Promise<string>;
   /** Screenshot a URL and send it to the chat as a photo. */
@@ -60,6 +74,8 @@ export interface BotDeps {
   ) => Promise<string>;
   /** Read the text out of a photo (by Telegram file id) with OCR. */
   readonly onOcr?: (fileId: string) => Promise<string>;
+  /** Extract structured JSON from a photo (receipt/card) via OCR + the model. */
+  readonly onExtract?: (fileId: string) => Promise<string>;
   /** Decode a QR code in a photo (by Telegram file id) to its payload. */
   readonly onQr?: (fileId: string) => Promise<string>;
   /** Generate a QR code from text and send it to the chat as a photo. */
@@ -150,6 +166,16 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
       } catch (thrown) {
         deps.logger?.error('removebg failed', { error: (thrown as Error).message });
         await ctx.reply('I could not remove the background.');
+      }
+      return;
+    }
+    if (isExtractRequest(cap) && deps.onExtract !== undefined) {
+      await ctx.reply('🧾 Extracting structured data…');
+      try {
+        await ctx.reply(await deps.onExtract(largest.file_id));
+      } catch (thrown) {
+        deps.logger?.error('extract failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not extract data from that image.');
       }
       return;
     }
@@ -455,6 +481,76 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('video failed', { error: (thrown as Error).message });
         await ctx.reply('Could not generate that video.');
+      }
+    });
+  }
+  if (deps.onMusicVideo !== undefined) {
+    const onMusicVideo = deps.onMusicVideo;
+    bot.command('musicvideo', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const prompt = ctx.args.join(' ').trim();
+      if (prompt === '') {
+        await ctx.reply('Usage: /musicvideo <prompt>');
+        return;
+      }
+      await ctx.reply('🎬🎵 Producing your music video (this can take a minute)…');
+      try {
+        await onMusicVideo(prompt, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('musicvideo failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not produce that music video.');
+      }
+    });
+  }
+  if (deps.onSchedule !== undefined) {
+    const onSchedule = deps.onSchedule;
+    bot.command('every', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const parsed = parseSchedule(ctx.args.join(' '));
+      if (parsed === undefined) {
+        await ctx.reply(
+          'Usage: /every <schedule> <task>\n' +
+            "e.g. /every weekdays 9am summarise my repo's new issues\n" +
+            'or a raw cron: /every 0 9 * * 1-5 <task>',
+        );
+        return;
+      }
+      try {
+        await ctx.reply(
+          await onSchedule(ctx.message.chat.id, parsed.cron, parsed.task),
+        );
+      } catch (thrown) {
+        deps.logger?.error('schedule failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not schedule that task.');
+      }
+    });
+  }
+  if (deps.onSchedules !== undefined) {
+    const onSchedules = deps.onSchedules;
+    bot.command('schedules', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      try {
+        await ctx.reply(await onSchedules(ctx.message.chat.id));
+      } catch (thrown) {
+        deps.logger?.error('schedules failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not list your schedules.');
+      }
+    });
+  }
+  if (deps.onUnschedule !== undefined) {
+    const onUnschedule = deps.onUnschedule;
+    bot.command('unschedule', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const id = ctx.args[0];
+      if (id === undefined) {
+        await ctx.reply('Usage: /unschedule <id> (see /schedules)');
+        return;
+      }
+      try {
+        await ctx.reply(await onUnschedule(ctx.message.chat.id, id));
+      } catch (thrown) {
+        deps.logger?.error('unschedule failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not cancel that task.');
       }
     });
   }

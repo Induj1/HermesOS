@@ -23,7 +23,7 @@ import { FetchHttpClient, guarded } from '@hermes/tools-http';
 import { NodeShellExecutor, allowlisted } from '@hermes/tools-shell';
 import { TelegramBot, TelegramClient } from '@hermes/telegram';
 import type { MemoryAdapter } from '@hermes/agent';
-import { buildAgentRuntime } from './agent.js';
+import { AGENT_NAME, buildAgentRuntime, replyText } from './agent.js';
 import {
   formatBriefing,
   formatCiAlert,
@@ -39,6 +39,7 @@ import { MemoryStore, type EmbedFn } from './memory-store.js';
 import { DOCS_SUBJECT, REPO_SUBJECT, htmlToText, ingestDocs } from './rag.js';
 import { shouldIngestPath } from './repo.js';
 import { humanDuration, type Reminder } from './reminders.js';
+import { localCronToUtc, type ScheduledTask } from './schedules.js';
 import { guardedShell } from './shell-guard.js';
 import { buildTeamRuntime } from './team.js';
 import { buildTools } from './tools.js';
@@ -54,16 +55,25 @@ type Job =
       readonly id: string;
       readonly chatId: number;
       readonly message: string;
+    }
+  | {
+      readonly kind: 'task';
+      readonly id: string;
+      readonly chatId: number;
+      readonly prompt: string;
     };
 
-async function loadReminders(file: string): Promise<Reminder[]> {
+async function loadJsonArray<T>(file: string): Promise<T[]> {
   try {
     const parsed: unknown = JSON.parse(await fsp.readFile(file, 'utf8'));
-    return Array.isArray(parsed) ? (parsed as Reminder[]) : [];
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
   } catch {
     return [];
   }
 }
+
+const loadReminders = (file: string): Promise<Reminder[]> =>
+  loadJsonArray<Reminder>(file);
 
 export async function main(): Promise<void> {
   const config = loadConfigFromEnv(telegramSchema);
@@ -341,6 +351,57 @@ export async function main(): Promise<void> {
     return `⏰ Reminder set for ${humanDuration(ms)} from now: "${message}"`;
   };
 
+  // Recurring agent tasks (/every). Stored in LOCAL-time cron; converted to UTC
+  // when armed, because the scheduler evaluates cron against UTC.
+  const tasksFile = path.resolve(config.dataDir, 'tasks.json');
+  let tasks = await loadJsonArray<ScheduledTask>(tasksFile);
+  const tzOffset = new Date().getTimezoneOffset();
+  const saveTasks = (): Promise<void> =>
+    fsp.writeFile(tasksFile, JSON.stringify(tasks), 'utf8');
+  const armTask = (task: ScheduledTask): void => {
+    scheduler.add(
+      {
+        id: task.id,
+        trigger: { kind: 'cron', expression: localCronToUtc(task.cron, tzOffset) },
+        payload: {
+          kind: 'task',
+          id: task.id,
+          chatId: task.chatId,
+          prompt: task.prompt,
+        },
+      },
+      Date.now(),
+    );
+  };
+  const onSchedule = async (
+    chatId: number,
+    cron: string,
+    prompt: string,
+  ): Promise<string> => {
+    const id = `job_${String(Date.now())}_${String(tasks.length)}`;
+    const task: ScheduledTask = { id, chatId, cron, prompt };
+    tasks.push(task);
+    await saveTasks();
+    armTask(task);
+    return `🗓 Scheduled ${id}: [${cron}] "${prompt}". Manage with /schedules and /unschedule.`;
+  };
+  const onSchedules = (chatId: number): Promise<string> => {
+    const mine = tasks.filter((t) => t.chatId === chatId);
+    if (mine.length === 0)
+      return Promise.resolve('No recurring tasks. Add one with /every.');
+    return Promise.resolve(
+      mine.map((t) => `• ${t.id} — [${t.cron}] ${t.prompt}`).join('\n'),
+    );
+  };
+  const onUnschedule = async (chatId: number, id: string): Promise<string> => {
+    const found = tasks.find((t) => t.id === id && t.chatId === chatId);
+    if (found === undefined) return `No task ${id} for this chat.`;
+    tasks = tasks.filter((t) => t.id !== id);
+    await saveTasks();
+    scheduler.remove(id);
+    return `🗑 Cancelled ${id}.`;
+  };
+
   // /ingest reads the docs folder recursively, chunks + embeds each file.
   const docsDir = path.resolve(config.docsDir);
   const walkFiles = async (dir: string): Promise<string[]> => {
@@ -441,6 +502,36 @@ export async function main(): Promise<void> {
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
     }
+  };
+
+  // A photo captioned "receipt"/"extract": OCR it, then have the model turn the
+  // text into clean JSON.
+  const onExtract = async (fileId: string): Promise<string> => {
+    const text = await onOcr(fileId);
+    if (text === '') return '(no text found to extract)';
+    const res = await fetch(`${ollamaRoot}/api/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: config.ollamaModel,
+        stream: false,
+        format: 'json',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You extract structured data from OCR text (receipts, invoices, ' +
+              'business cards). Return ONLY a compact JSON object with the ' +
+              'relevant fields (e.g. merchant, date, total, currency, items, or ' +
+              'name, title, company, email, phone). No prose, no code fence.',
+          },
+          { role: 'user', content: text },
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error(`extract failed: ${String(res.status)}`);
+    const json = (await res.json()) as { message?: { content?: string } };
+    return (json.message?.content ?? '').trim() || '(the model returned nothing)';
   };
 
   // A photo captioned "remove background": run rembg, send back a PNG cutout as a
@@ -774,6 +865,54 @@ export async function main(): Promise<void> {
     }
   };
 
+  // /musicvideo: generate a clip and a soundtrack, then mux them — the video is
+  // looped to fill the music's length (-shortest stops at the audio's end).
+  const onMusicVideo = async (prompt: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-mv-'));
+    try {
+      const clip = path.join(dir, 'clip.mp4');
+      const music = path.join(dir, 'music.wav');
+      const out = path.join(dir, 'musicvideo.mp4');
+      await execFileAsync(config.imagegenPython, [config.videoScript, prompt, clip], {
+        timeout: 600_000,
+      });
+      await execFileAsync(config.imagegenPython, [config.musicScript, prompt, music], {
+        timeout: 600_000,
+      });
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-stream_loop',
+        '-1',
+        '-i',
+        clip,
+        '-i',
+        music,
+        '-map',
+        '0:v:0',
+        '-map',
+        '1:a:0',
+        '-c:v',
+        'libx264',
+        '-pix_fmt',
+        'yuv420p',
+        '-c:a',
+        'aac',
+        '-shortest',
+        out,
+      ]);
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('video', new Blob([await fsp.readFile(out)]), 'musicvideo.mp4');
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`sendVideo failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
     token: config.telegramBotToken,
@@ -828,6 +967,14 @@ export async function main(): Promise<void> {
     ...(config.enableRepoQa ? { onRepo } : {}),
     ...(config.enableAudiobook ? { onAudiobook } : {}),
     ...(config.imagegenPython !== '' && config.videoScript !== '' ? { onVideo } : {}),
+    ...(config.enableMusicVideo &&
+    config.imagegenPython !== '' &&
+    config.videoScript !== '' &&
+    config.musicScript !== ''
+      ? { onMusicVideo }
+      : {}),
+    ...(config.enableOcr && config.enableExtract ? { onExtract } : {}),
+    ...(config.enableSchedules ? { onSchedule, onSchedules, onUnschedule } : {}),
   });
 
   const controller = new AbortController();
@@ -898,6 +1045,8 @@ export async function main(): Promise<void> {
       Date.now(),
     );
   }
+  // Re-arm recurring agent tasks persisted from before a restart.
+  for (const task of tasks) armTask(task);
   if (config.enableBriefing) {
     scheduler.add(
       {
@@ -1024,6 +1173,20 @@ export async function main(): Promise<void> {
     reminders = reminders.filter((r) => r.id !== payload.id);
     await saveReminders();
   };
+  // A recurring agent task: run the agent on its prompt and message the result.
+  const runTask = async (payload: {
+    chatId: number;
+    prompt: string;
+  }): Promise<void> => {
+    const result = await runtime.run(AGENT_NAME, {
+      input: payload.prompt,
+      subject: String(payload.chatId),
+    });
+    await client.sendMessage({
+      chatId: payload.chatId,
+      text: `🗓 ${replyText(result)}`,
+    });
+  };
   const runJob = (payload: Job): Promise<void> => {
     switch (payload.kind) {
       case 'briefing':
@@ -1034,6 +1197,8 @@ export async function main(): Promise<void> {
         return runStandup();
       case 'reminder':
         return runReminder(payload);
+      case 'task':
+        return runTask(payload);
     }
   };
   const timer = setInterval(() => {

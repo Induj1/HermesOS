@@ -273,6 +273,25 @@ export const telegramSchema = {
    */
   enableRepoQa: boolean().default(false).describe('Enable /repo code Q&A.'),
 
+  /**
+   * Recurring agent tasks: /every <schedule> <task> runs the agent on a cron and
+   * messages you the result. `ENABLE_SCHEDULES`. Times are interpreted in the
+   * host's local timezone and converted to the scheduler's UTC.
+   */
+  enableSchedules: boolean().default(false).describe('Enable /every recurring tasks.'),
+
+  /**
+   * Structured extraction: a photo captioned "receipt"/"extract"/"to json" is
+   * OCR'd and the model returns clean JSON. `ENABLE_EXTRACT`. Needs ENABLE_OCR.
+   */
+  enableExtract: boolean().default(false).describe('Enable receipt/card → JSON.'),
+
+  /**
+   * Music video: /musicvideo <prompt> makes a clip (VIDEO_SCRIPT) with a
+   * generated soundtrack (MUSIC_SCRIPT) muxed in. `ENABLE_MUSIC_VIDEO`.
+   */
+  enableMusicVideo: boolean().default(false).describe('Enable /musicvideo.'),
+
   /** Serve a read-only dashboard on 127.0.0.1:PORT. `DASHBOARD_PORT`. 0 = off. */
   dashboardPort: integer().default(0).describe('Local dashboard port (0 = off).'),
 
