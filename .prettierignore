@@ -19,3 +19,4 @@ docker-compose.yml
 *.sql
 Justfile
 hermes-docs/
+.venv-sd/

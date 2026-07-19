@@ -389,4 +389,68 @@ describe('registerHandlers', () => {
     await handlers['remind']?.(failed.ctx);
     expect(failed.replies.some((r) => r.includes('Could not set'))).toBe(true);
   });
+
+  it('registers /screenshot and /imagine media commands', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const shots: string[] = [];
+    const images: string[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onScreenshot: (url) => {
+        shots.push(url);
+        return Promise.resolve();
+      },
+      onImagine: (prompt) => {
+        images.push(prompt);
+        return Promise.resolve();
+      },
+    });
+
+    const shot = ctxWith(['https://example.com']);
+    await handlers['screenshot']?.(shot.ctx);
+    expect(shots).toEqual(['https://example.com']);
+
+    const shotUsage = ctxWith([]);
+    await handlers['screenshot']?.(shotUsage.ctx);
+    expect(shotUsage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    const img = ctxWith(['a', 'red', 'fox']);
+    await handlers['imagine']?.(img.ctx);
+    expect(images).toEqual(['a red fox']);
+
+    const imgUsage = ctxWith([]);
+    await handlers['imagine']?.(imgUsage.ctx);
+    expect(imgUsage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    // Not on the allowlist → ignored.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onScreenshot: () => Promise.reject(new Error('nope')),
+      onImagine: () => Promise.reject(new Error('nope')),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['https://x.com'], 999);
+    await handlers['screenshot']?.(denied.ctx);
+    expect(denied.replies).toEqual([]);
+
+    // Failures apologise.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onScreenshot: () => Promise.reject(new Error('boom')),
+      onImagine: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const shotFail = ctxWith(['https://x.com']);
+    await handlers['screenshot']?.(shotFail.ctx);
+    expect(shotFail.replies.some((r) => r.includes('Could not capture'))).toBe(true);
+    const imgFail = ctxWith(['a fox']);
+    await handlers['imagine']?.(imgFail.ctx);
+    expect(imgFail.replies.some((r) => r.includes('Could not generate'))).toBe(true);
+  });
 });

@@ -44,7 +44,8 @@
     "@hermes/tools": "workspace:*",
     "@hermes/tools-fs": "workspace:*",
     "@hermes/tools-http": "workspace:*",
-    "@hermes/tools-shell": "workspace:*"
+    "@hermes/tools-shell": "workspace:*",
+    "playwright": "^1.61.1"
   },
   "devDependencies": {
     "@types/node": "catalog:",

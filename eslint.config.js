@@ -15,6 +15,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/*.tsbuildinfo',
       '**/hermes-workspace/**',
+      '**/.venv-sd/**',
     ],
   },
 

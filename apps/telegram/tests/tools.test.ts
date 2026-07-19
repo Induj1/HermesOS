@@ -26,4 +26,13 @@ describe('buildTools', () => {
 
     expect(tools.map((tool) => tool.name)).toContain('shell.run');
   });
+
+  it('includes the browser tool when a browse port is supplied', () => {
+    const tools = buildTools({
+      fs: new MemoryFileSystem(),
+      http: FakeHttpClient.respondingWith(''),
+      browse: () => Promise.resolve('text'),
+    });
+    expect(tools.map((tool) => tool.name)).toContain('web.browse');
+  });
 });

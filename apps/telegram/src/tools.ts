@@ -14,6 +14,7 @@ import { httpTools } from '@hermes/tools-http';
 import type { HttpClient } from '@hermes/tools-http';
 import { shellTools } from '@hermes/tools-shell';
 import type { ShellExecutor } from '@hermes/tools-shell';
+import { browserTools, type BrowsePort } from './browser.js';
 import { searchTools } from './search.js';
 
 export interface ToolDeps {
@@ -21,6 +22,8 @@ export interface ToolDeps {
   readonly http: HttpClient;
   /** When present, shell tools are included. Omitted disables them entirely. */
   readonly shell?: ShellExecutor;
+  /** When present, a web.browse tool (headless browser) is included. */
+  readonly browse?: BrowsePort;
 }
 
 /** Build the agent's tools over the given ports. Filesystem and HTTP always;
@@ -32,5 +35,6 @@ export function buildTools(deps: ToolDeps): readonly HermesTool[] {
     ...searchTools(deps.http),
   ];
   if (deps.shell !== undefined) tools.push(...shellTools(deps.shell));
+  if (deps.browse !== undefined) tools.push(...browserTools(deps.browse));
   return tools;
 }

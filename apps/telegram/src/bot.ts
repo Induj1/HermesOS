@@ -28,6 +28,10 @@ export interface BotDeps {
   readonly onIngestUrl?: (url: string) => Promise<string>;
   /** Schedule a reminder; returns an acknowledgement. */
   readonly onRemind?: (chatId: number, ms: number, message: string) => Promise<string>;
+  /** Screenshot a URL and send it to the chat as a photo. */
+  readonly onScreenshot?: (url: string, chatId: number) => Promise<void>;
+  /** Generate an image from a prompt and send it to the chat as a photo. */
+  readonly onImagine?: (prompt: string, chatId: number) => Promise<void>;
   /** Describe a photo (by Telegram file id) with a vision model. */
   readonly onPhoto?: (
     fileId: string,
@@ -201,6 +205,42 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('reminder failed', { error: (thrown as Error).message });
         await ctx.reply('Could not set that reminder.');
+      }
+    });
+  }
+  if (deps.onScreenshot !== undefined) {
+    const onScreenshot = deps.onScreenshot;
+    bot.command('screenshot', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const url = ctx.args[0];
+      if (url === undefined) {
+        await ctx.reply('Usage: /screenshot <url>');
+        return;
+      }
+      await ctx.reply('📸 Capturing…');
+      try {
+        await onScreenshot(url, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('screenshot failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not capture that page.');
+      }
+    });
+  }
+  if (deps.onImagine !== undefined) {
+    const onImagine = deps.onImagine;
+    bot.command('imagine', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const prompt = ctx.args.join(' ').trim();
+      if (prompt === '') {
+        await ctx.reply('Usage: /imagine <prompt>');
+        return;
+      }
+      await ctx.reply('🎨 Generating (this can take a moment)…');
+      try {
+        await onImagine(prompt, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('imagine failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not generate that image.');
       }
     });
   }

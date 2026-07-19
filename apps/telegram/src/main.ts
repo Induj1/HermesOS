@@ -108,7 +108,27 @@ export async function main(): Promise<void> {
       )
     : undefined;
 
-  const tools = buildTools({ fs, http, ...(shell === undefined ? {} : { shell }) });
+  // Headless-browser port (Playwright), lazily imported so the app boots without
+  // a browser installed. Reads the rendered text of a page.
+  const browse = async (url: string, maxChars: number): Promise<string> => {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      const text = await page.innerText('body');
+      return text.replace(/\s+/g, ' ').trim().slice(0, maxChars);
+    } finally {
+      await browser.close();
+    }
+  };
+
+  const tools = buildTools({
+    fs,
+    http,
+    ...(shell === undefined ? {} : { shell }),
+    ...(config.enableBrowser ? { browse } : {}),
+  });
   const executor = toolExecutor(tools, { logger });
 
   // Persistent memory: embed text with Ollama's native /api/embed and store it
@@ -285,6 +305,50 @@ export async function main(): Promise<void> {
     }
   };
 
+  // Upload an image buffer to a chat via the raw Telegram sendPhoto API.
+  const sendPhoto = async (
+    chatId: number,
+    bytes: Buffer,
+    name: string,
+  ): Promise<void> => {
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    form.append('photo', new Blob([bytes]), name);
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) throw new Error(`sendPhoto failed: ${String(res.status)}`);
+  };
+
+  // /screenshot: render a page in headless Chromium and send a PNG.
+  const onScreenshot = async (url: string, chatId: number): Promise<void> => {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 });
+      const png = await page.screenshot();
+      await sendPhoto(chatId, Buffer.from(png), 'screenshot.png');
+    } finally {
+      await browser.close();
+    }
+  };
+
+  // /imagine: generate an image locally with Stable Diffusion and send it.
+  const onImagine = async (prompt: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-img-'));
+    try {
+      const out = path.join(dir, 'image.png');
+      await execFileAsync(config.imagegenPython, [config.imagegenScript, prompt, out], {
+        timeout: 300_000,
+      });
+      await sendPhoto(chatId, await fsp.readFile(out), 'image.png');
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
     token: config.telegramBotToken,
@@ -307,6 +371,12 @@ export async function main(): Promise<void> {
     ...(config.visionModel === '' ? {} : { onPhoto }),
     ...(config.whisperModel === '' ? {} : { onVoice }),
     ...(config.enableVoiceReplies ? { speak } : {}),
+    ...(config.enableBrowser ? { onScreenshot } : {}),
+    ...(config.enableImagegen &&
+    config.imagegenPython !== '' &&
+    config.imagegenScript !== ''
+      ? { onImagine }
+      : {}),
   });
 
   const controller = new AbortController();

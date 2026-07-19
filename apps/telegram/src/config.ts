@@ -158,6 +158,28 @@ export const telegramSchema = {
   ttsCommand: string().default('say').describe('TTS command (writes AIFF via -o).'),
 
   /**
+   * Give the agent a headless-browser tool and enable /screenshot. `ENABLE_BROWSER`.
+   * Requires playwright + a browser (`npx playwright install chromium`).
+   */
+  enableBrowser: boolean()
+    .default(false)
+    .describe('Enable the browser tool (Playwright).'),
+
+  /**
+   * Enable /imagine local image generation. `ENABLE_IMAGEGEN`. Requires the SD
+   * python venv (torch + diffusers) — see IMAGEGEN_PYTHON / IMAGEGEN_SCRIPT.
+   */
+  enableImagegen: boolean()
+    .default(false)
+    .describe('Enable /imagine (Stable Diffusion).'),
+
+  /** Python interpreter (venv) for image generation. `IMAGEGEN_PYTHON`. */
+  imagegenPython: string().default('').describe('Python (venv) with torch+diffusers.'),
+
+  /** The image-generation script. `IMAGEGEN_SCRIPT`. Called: python script <prompt> <out.png>. */
+  imagegenScript: string().default('').describe('Path to the SD generate script.'),
+
+  /**
    * Where persistent data (the memory store) lives. `DATA_DIR`. Kept out of the
    * agent's writable workspace so the model cannot tamper with its own memory.
    */

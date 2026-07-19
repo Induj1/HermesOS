@@ -103,3 +103,6 @@ desktop.ini
 
 # The Telegram agent's ingest docs folder.
 hermes-docs/
+
+# Stable Diffusion python venv (torch + diffusers) for /imagine.
+.venv-sd/
