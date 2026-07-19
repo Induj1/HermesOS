@@ -410,6 +410,13 @@ export const telegramSchema = {
    * `OWNER_PROFILE`. Empty leaves the assistant generic.
    */
   ownerProfile: string().default('').describe('Owner profile for personalisation.'),
+
+  /**
+   * Career toolkit: /coverletter, /tailor, and /interview — résumé-grounded job
+   * helpers that run the agent with the owner profile and ingested résumé.
+   * `ENABLE_CAREER`.
+   */
+  enableCareer: boolean().default(false).describe('Enable the career toolkit.'),
 };
 
 export type TelegramConfig = Config<typeof telegramSchema>;

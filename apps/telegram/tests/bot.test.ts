@@ -1143,6 +1143,65 @@ describe('registerHandlers', () => {
     );
   });
 
+  it('registers /coverletter, /tailor, /interview career commands', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const prompts: string[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onCareer: (prompt) => {
+        prompts.push(prompt);
+        return Promise.resolve('drafted');
+      },
+    });
+
+    // Cover letter runs with the job text embedded in the prompt.
+    const cl = ctxWith(['Security', 'Engineer', 'at', 'Acme']);
+    await handlers['coverletter']?.(cl.ctx);
+    expect(prompts.at(-1)).toContain('Security Engineer at Acme');
+    expect(cl.replies).toContain('drafted');
+
+    // Cover letter with no JD → usage.
+    const clUsage = ctxWith([]);
+    await handlers['coverletter']?.(clUsage.ctx);
+    expect(clUsage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    // Tailor requires input too.
+    const tailorUsage = ctxWith([]);
+    await handlers['tailor']?.(tailorUsage.ctx);
+    expect(tailorUsage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    // Interview runs even with no argument.
+    const iv = ctxWith([]);
+    await handlers['interview']?.(iv.ctx);
+    expect(prompts.at(-1)).toContain('roles that match my background');
+
+    // Not on the allowlist → ignored.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onCareer: () => Promise.resolve('no'),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['x'], 999);
+    await handlers['coverletter']?.(denied.ctx);
+    expect(denied.replies).toEqual([]);
+
+    // Failure apologises.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onCareer: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const fail = ctxWith(['a', 'job']);
+    await handlers['tailor']?.(fail.ctx);
+    expect(fail.replies.some((r) => /could not do that/i.test(r))).toBe(true);
+  });
+
   it('registers /qr: generates, shows usage, rejects, and handles failure', async () => {
     const handlers: Record<string, Handler> = {};
     const bot: CommandBot = {

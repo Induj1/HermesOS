@@ -446,6 +446,16 @@ export async function main(): Promise<void> {
     return `Ingested ${url} into ${String(chunks)} chunks. Ask me about it!`;
   };
 
+  // Career toolkit: run the agent on a résumé-grounded prompt (owner profile is
+  // always in the system prompt; the résumé is recalled via RAG if ingested).
+  const onCareer = async (prompt: string, chatId: number): Promise<string> => {
+    const result = await runtime.run(AGENT_NAME, {
+      input: prompt,
+      subject: String(chatId),
+    });
+    return replyText(result);
+  };
+
   // /repo: walk a local source repo, keep the source files, and embed them under
   // REPO_SUBJECT so questions are answered across the whole codebase.
   const onRepo = async (repoPath: string): Promise<string> => {
@@ -1121,6 +1131,7 @@ export async function main(): Promise<void> {
       ? { onImagine }
       : {}),
     ...(config.enableRepoQa ? { onRepo } : {}),
+    ...(config.enableCareer ? { onCareer } : {}),
     ...(config.enableAudiobook ? { onAudiobook } : {}),
     ...(config.imagegenPython !== '' && config.videoScript !== '' ? { onVideo } : {}),
     ...(config.enableMusicVideo &&

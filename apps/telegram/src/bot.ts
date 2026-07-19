@@ -13,6 +13,7 @@ import type { Logger } from '@hermes/kernel';
 import type { Handler, MessageContext } from '@hermes/telegram';
 import { AGENT_NAME, replyText } from './agent.js';
 import { isRemoveBgRequest } from './bg.js';
+import { buildCareerPrompt, type CareerTask } from './career.js';
 import type { ConversationHistory } from './conversation.js';
 import { isExtractRequest } from './extract.js';
 import {
@@ -53,6 +54,8 @@ export interface BotDeps {
   readonly onIngestUrl?: (url: string) => Promise<string>;
   /** Ingest a local source repo for code Q&A; returns a summary. */
   readonly onRepo?: (path: string) => Promise<string>;
+  /** Run the agent on a career prompt (cover letter, résumé tailoring, interview). */
+  readonly onCareer?: (prompt: string, chatId: number) => Promise<string>;
   /** Narrate a workspace document to the chat as an audio track. */
   readonly onAudiobook?: (path: string, chatId: number) => Promise<void>;
   /** Generate a short animated clip from a prompt and send it. */
@@ -694,6 +697,30 @@ export function registerHandlers<TBot extends CommandBot>(
         await ctx.reply('Could not translate that.');
       }
     });
+  }
+  if (deps.onCareer !== undefined) {
+    const onCareer = deps.onCareer;
+    const careerCmd = (name: string, task: CareerTask, requireInput: boolean): void => {
+      bot.command(name, async (ctx) => {
+        if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+        const input = ctx.args.join(' ').trim();
+        if (requireInput && input === '') {
+          await ctx.reply(`Usage: /${name} <job description>`);
+          return;
+        }
+        await ctx.reply('✍️ Working on it…');
+        try {
+          const prompt = buildCareerPrompt(task, input);
+          await ctx.reply(await onCareer(prompt, ctx.message.chat.id));
+        } catch (thrown) {
+          deps.logger?.error(`${name} failed`, { error: (thrown as Error).message });
+          await ctx.reply('Sorry, I could not do that right now.');
+        }
+      });
+    };
+    careerCmd('coverletter', 'coverletter', true);
+    careerCmd('tailor', 'tailor', true);
+    careerCmd('interview', 'interview', false);
   }
   bot.onText((ctx) => handleMessage(ctx, deps));
   return bot;

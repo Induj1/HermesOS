@@ -44,6 +44,7 @@ export {
 export { shouldIngestPath } from './repo.js';
 export { isExtractRequest } from './extract.js';
 export { withOwnerProfile } from './profile.js';
+export { buildCareerPrompt, type CareerTask } from './career.js';
 export {
   isInpaintRequest,
   isUpscaleRequest,
