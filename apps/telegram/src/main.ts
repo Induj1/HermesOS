@@ -24,12 +24,17 @@ import { NodeShellExecutor, allowlisted } from '@hermes/tools-shell';
 import { TelegramBot, TelegramClient } from '@hermes/telegram';
 import type { MemoryAdapter } from '@hermes/agent';
 import { buildAgentRuntime } from './agent.js';
-import { formatBriefing, formatCiAlert, isCiFailing } from './briefing.js';
+import {
+  formatBriefing,
+  formatCiAlert,
+  formatStandup,
+  isCiFailing,
+} from './briefing.js';
 import { registerHandlers } from './bot.js';
 import { telegramSchema } from './config.js';
 import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
-import { DOCS_SUBJECT, ingestDocs } from './rag.js';
+import { DOCS_SUBJECT, htmlToText, ingestDocs } from './rag.js';
 import { buildTeamRuntime } from './team.js';
 import { buildTools } from './tools.js';
 import { lenientWorkspaceFs } from './workspace-fs.js';
@@ -127,7 +132,12 @@ export async function main(): Promise<void> {
     const docs: { name: string; content: string }[] = [];
     for (const name of names) {
       const full = path.join(docsDir, name);
-      if ((await fsp.stat(full)).isFile()) {
+      if (!(await fsp.stat(full)).isFile()) continue;
+      if (name.toLowerCase().endsWith('.pdf')) {
+        // pdftotext (poppler) extracts text; "-" writes to stdout.
+        const { stdout } = await execFileAsync('pdftotext', [full, '-']);
+        docs.push({ name, content: stdout });
+      } else {
         docs.push({ name, content: await fsp.readFile(full, 'utf8') });
       }
     }
@@ -135,6 +145,17 @@ export async function main(): Promise<void> {
       return `No files found in ${config.docsDir}. Add some and /ingest again.`;
     const chunks = await ingestDocs(memory, docs);
     return `Ingested ${String(docs.length)} file(s) into ${String(chunks)} chunks. Ask me about them!`;
+  };
+
+  // /ingesturl fetches a web page, strips it to text, and ingests it.
+  const onIngestUrl = async (url: string): Promise<string> => {
+    const res = await fetch(url, {
+      headers: { 'user-agent': 'Mozilla/5.0 (hermes-telegram)' },
+    });
+    if (!res.ok) throw new Error(`fetch failed: ${String(res.status)}`);
+    const text = htmlToText(await res.text());
+    const chunks = await ingestDocs(memory, [{ name: url, content: text }]);
+    return `Ingested ${url} into ${String(chunks)} chunks. Ask me about it!`;
   };
 
   // A photo: download it via the raw Telegram Bot API and describe it with the
@@ -232,6 +253,7 @@ export async function main(): Promise<void> {
     remember: (subject, text) =>
       memory.remember({ subject, kind: 'episode', content: text }),
     onIngest,
+    onIngestUrl,
     allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),
     ...(config.whisperModel === '' ? {} : { onVoice }),
@@ -251,7 +273,7 @@ export async function main(): Promise<void> {
   });
 
   // Scheduled pushes: a morning briefing, and (if CI_REPO is set) a CI watcher.
-  const scheduler = new Scheduler<{ kind: 'briefing' | 'ci' }>();
+  const scheduler = new Scheduler<{ kind: 'briefing' | 'ci' | 'standup' }>();
   if (config.enableBriefing) {
     scheduler.add(
       {
@@ -268,6 +290,16 @@ export async function main(): Promise<void> {
         id: 'ci',
         trigger: { kind: 'cron', expression: config.ciCron },
         payload: { kind: 'ci' },
+      },
+      Date.now(),
+    );
+  }
+  if (config.enableStandup) {
+    scheduler.add(
+      {
+        id: 'standup',
+        trigger: { kind: 'cron', expression: config.standupCron },
+        payload: { kind: 'standup' },
       },
       Date.now(),
     );
@@ -338,9 +370,35 @@ export async function main(): Promise<void> {
       );
     }
   };
+  const runStandup = async (): Promise<void> => {
+    const repos = await Promise.all(
+      config.standupRepos.map(async (repo) => {
+        try {
+          const { stdout } = await execFileAsync('git', [
+            '-C',
+            repo,
+            'log',
+            '--since=1 day ago',
+            '--pretty=format:%s',
+          ]);
+          const commits = stdout.split('\n').filter((line) => line.trim() !== '');
+          return { name: path.basename(repo), commits };
+        } catch {
+          return { name: path.basename(repo), commits: [] };
+        }
+      }),
+    );
+    await sendAll(formatStandup(repos, new Date().toDateString()));
+  };
+
+  const runJob = (kind: 'briefing' | 'ci' | 'standup'): Promise<void> => {
+    if (kind === 'briefing') return runBriefing();
+    if (kind === 'ci') return runCi();
+    return runStandup();
+  };
   const timer = setInterval(() => {
     for (const job of scheduler.poll(Date.now())) {
-      const work = job.payload.kind === 'briefing' ? runBriefing() : runCi();
+      const work = runJob(job.payload.kind);
       work.catch((thrown: unknown) => {
         logger.warn('scheduled job failed', {
           id: job.id,

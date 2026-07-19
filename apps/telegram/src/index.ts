@@ -18,13 +18,15 @@ export {
   type NewMemory,
   type ScoredItem,
 } from './memory-store.js';
-export { DOCS_SUBJECT, chunkText, ingestDocs, type Doc } from './rag.js';
+export { DOCS_SUBJECT, chunkText, htmlToText, ingestDocs, type Doc } from './rag.js';
 export {
   formatBriefing,
   formatCiAlert,
+  formatStandup,
   isCiFailing,
   type Briefing,
   type CiStatus,
+  type RepoActivity,
   type WeatherSummary,
 } from './briefing.js';
 export {

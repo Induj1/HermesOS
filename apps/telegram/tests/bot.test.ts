@@ -291,4 +291,61 @@ describe('registerHandlers', () => {
     await handlers['ingest']?.(bad.ctx);
     expect(bad.replies.some((r) => /Ingest failed/i.test(r))).toBe(true);
   });
+
+  const ctxWith = (args: string[], chatId = 42) => {
+    const replies: string[] = [];
+    const ctx = {
+      text: '/ingesturl',
+      command: 'ingesturl',
+      args,
+      message: { chat: { id: chatId } },
+      reply: (m: string) => {
+        replies.push(m);
+        return Promise.resolve(undefined);
+      },
+    } as unknown as MessageContext;
+    return { ctx, replies };
+  };
+
+  it('registers /ingesturl: ingests a url, shows usage, and rejects/failures', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onIngestUrl: (url) => Promise.resolve(`Ingested ${url}`),
+    });
+
+    const withUrl = ctxWith(['https://example.com']);
+    await handlers['ingesturl']?.(withUrl.ctx);
+    expect(withUrl.replies.some((r) => r.includes('Ingested https'))).toBe(true);
+
+    const noUrl = ctxWith([]);
+    await handlers['ingesturl']?.(noUrl.ctx);
+    expect(noUrl.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    // Not on the allowlist → silently ignored.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onIngestUrl: () => Promise.resolve('should not run'),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['https://x.com'], 999);
+    await handlers['ingesturl']?.(denied.ctx);
+    expect(denied.replies).toEqual([]);
+
+    // The ingest throws → apologises.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onIngestUrl: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const failed = ctxWith(['https://x.com']);
+    await handlers['ingesturl']?.(failed.ctx);
+    expect(failed.replies.some((r) => r.includes('Could not ingest'))).toBe(true);
+  });
 });

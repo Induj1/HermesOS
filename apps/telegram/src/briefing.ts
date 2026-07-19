@@ -57,3 +57,23 @@ export function formatCiAlert(status: CiStatus): string {
     status.url,
   ].join('\n');
 }
+
+export interface RepoActivity {
+  readonly name: string;
+  readonly commits: readonly string[];
+}
+
+/** Render a daily git standup from each repo's recent commits. */
+export function formatStandup(repos: readonly RepoActivity[], date: string): string {
+  const active = repos.filter((repo) => repo.commits.length > 0);
+  if (active.length === 0) {
+    return `📊 Standup for ${date}\n\nNo commits in the last day. Rest day? 😌`;
+  }
+  const lines = [`📊 Standup for ${date}`, ''];
+  for (const repo of active) {
+    lines.push(`${repo.name} (${String(repo.commits.length)})`);
+    for (const commit of repo.commits) lines.push(`  • ${commit}`);
+    lines.push('');
+  }
+  return lines.join('\n').trim();
+}

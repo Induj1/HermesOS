@@ -23,6 +23,8 @@ export interface BotDeps {
   readonly remember?: (subject: string, text: string) => Promise<unknown>;
   /** Ingest the docs folder into memory; returns a human-readable summary. */
   readonly onIngest?: () => Promise<string>;
+  /** Ingest a web page by URL into memory; returns a summary. */
+  readonly onIngestUrl?: (url: string) => Promise<string>;
   /** Describe a photo (by Telegram file id) with a vision model. */
   readonly onPhoto?: (
     fileId: string,
@@ -161,6 +163,24 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('ingest failed', { error: (thrown as Error).message });
         await ctx.reply('Ingest failed. Check the docs folder and try again.');
+      }
+    });
+  }
+  if (deps.onIngestUrl !== undefined) {
+    const onIngestUrl = deps.onIngestUrl;
+    bot.command('ingesturl', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const url = ctx.args[0];
+      if (url === undefined) {
+        await ctx.reply('Usage: /ingesturl <url>');
+        return;
+      }
+      await ctx.reply('Fetching and ingesting…');
+      try {
+        await ctx.reply(await onIngestUrl(url));
+      } catch (thrown) {
+        deps.logger?.error('url ingest failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not ingest that URL.');
       }
     });
   }

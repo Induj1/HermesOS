@@ -222,6 +222,15 @@ export const telegramSchema = {
   /** Cron for the CI check (5-field, UTC). `CI_CRON`. Default ~23:30 IST. */
   ciCron: string().default('0 18 * * *').describe('CI-watcher cron (UTC).'),
 
+  /** Send a daily git standup of recent commits. `ENABLE_STANDUP`. */
+  enableStandup: boolean().default(false).describe('Send a daily git standup.'),
+
+  /** Local repo paths to summarise in the standup. `STANDUP_REPOS`, comma-separated. */
+  standupRepos: list().default([]).describe('Local repo paths for the standup.'),
+
+  /** Cron for the standup (5-field, UTC). `STANDUP_CRON`. Default ~08:30 IST. */
+  standupCron: string().default('0 3 * * *').describe('Standup cron (UTC).'),
+
   /** How often to poll Telegram for updates, in ms. `POLL_INTERVAL_MS`. */
   pollIntervalMs: integer().default(1_000).describe('Long-poll interval in ms.'),
 

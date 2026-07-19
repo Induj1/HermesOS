@@ -4,7 +4,16 @@ import path from 'node:path';
 import { systemClock } from '@hermes/kernel';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MemoryStore } from '../src/memory-store.js';
-import { DOCS_SUBJECT, chunkText, ingestDocs } from '../src/rag.js';
+import { DOCS_SUBJECT, chunkText, htmlToText, ingestDocs } from '../src/rag.js';
+
+describe('htmlToText', () => {
+  it('drops script/style, tags, and entities', () => {
+    const html =
+      '<html><head><style>.a{}</style></head><body><script>x=1</script>' +
+      '<h1>Hi &amp; bye</h1><p>Some&nbsp;text</p></body></html>';
+    expect(htmlToText(html)).toBe('Hi & bye Some text');
+  });
+});
 
 describe('chunkText', () => {
   it('returns a single chunk for short text', () => {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatBriefing, formatCiAlert, isCiFailing } from '../src/briefing.js';
+import {
+  formatBriefing,
+  formatCiAlert,
+  formatStandup,
+  isCiFailing,
+} from '../src/briefing.js';
 
 describe('formatBriefing', () => {
   it('renders weather and numbered headlines', () => {
@@ -43,5 +48,24 @@ describe('formatCiAlert', () => {
     expect(
       formatCiAlert({ repo: 'r', branch: 'b', conclusion: null, url: 'u' }),
     ).toContain('unknown');
+  });
+});
+
+describe('formatStandup', () => {
+  it('lists commits per active repo', () => {
+    const text = formatStandup(
+      [
+        { name: 'HermesOS', commits: ['feat: a', 'fix: b'] },
+        { name: 'idle', commits: [] },
+      ],
+      'Sat Jul 19 2026',
+    );
+    expect(text).toContain('HermesOS (2)');
+    expect(text).toContain('• feat: a');
+    expect(text).not.toContain('idle'); // repos with no commits are omitted
+  });
+
+  it('says so when nothing was committed', () => {
+    expect(formatStandup([{ name: 'x', commits: [] }], 'today')).toMatch(/No commits/);
   });
 });
