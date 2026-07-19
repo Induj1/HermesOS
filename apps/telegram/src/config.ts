@@ -157,6 +157,13 @@ export const telegramSchema = {
   /** The text-to-speech command. `TTS_COMMAND`. macOS `say` by default. */
   ttsCommand: string().default('say').describe('TTS command (writes AIFF via -o).'),
 
+  /** TTS engine. `TTS_MODE`. 'say' (macOS) or 'piper' (natural neural voice). */
+  ttsMode: oneOf(['say', 'piper']).default('say').describe('TTS engine.'),
+
+  /** Piper binary and voice model, when TTS_MODE=piper. `PIPER_BIN` / `PIPER_MODEL`. */
+  piperBin: string().default('piper').describe('Piper binary.'),
+  piperModel: string().default('').describe('Piper voice .onnx model path.'),
+
   /**
    * Give the agent a headless-browser tool and enable /screenshot. `ENABLE_BROWSER`.
    * Requires playwright + a browser (`npx playwright install chromium`).

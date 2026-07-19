@@ -313,14 +313,30 @@ export async function main(): Promise<void> {
     }
   };
 
-  // Speak a reply back: TTS to AIFF, ffmpeg to OGG/Opus, upload via sendVoice.
+  // Speak a reply back: synthesize audio, ffmpeg to OGG/Opus, upload via sendVoice.
   const speak = async (chatId: number, text: string): Promise<void> => {
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-tts-'));
     try {
-      const aiff = path.join(dir, 'out.aiff');
+      const clipped = text.slice(0, 800);
+      const raw = path.join(dir, config.ttsMode === 'piper' ? 'out.wav' : 'out.aiff');
       const ogg = path.join(dir, 'out.ogg');
-      await execFileAsync(config.ttsCommand, ['-o', aiff, text.slice(0, 800)]);
-      await execFileAsync('ffmpeg', ['-y', '-i', aiff, '-c:a', 'libopus', ogg]);
+      if (config.ttsMode === 'piper') {
+        // Piper reads text from stdin; keep the user text out of the shell string.
+        const txt = path.join(dir, 'in.txt');
+        await fsp.writeFile(txt, clipped);
+        await execFileAsync('sh', [
+          '-c',
+          'exec "$1" -m "$2" -f "$3" < "$4"',
+          'sh',
+          config.piperBin,
+          config.piperModel,
+          raw,
+          txt,
+        ]);
+      } else {
+        await execFileAsync(config.ttsCommand, ['-o', raw, clipped]);
+      }
+      await execFileAsync('ffmpeg', ['-y', '-i', raw, '-c:a', 'libopus', ogg]);
       const form = new FormData();
       form.append('chat_id', String(chatId));
       form.append('voice', new Blob([await fsp.readFile(ogg)]), 'reply.ogg');
