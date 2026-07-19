@@ -348,4 +348,45 @@ describe('registerHandlers', () => {
     await handlers['ingesturl']?.(failed.ctx);
     expect(failed.replies.some((r) => r.includes('Could not ingest'))).toBe(true);
   });
+
+  it('registers /remind: schedules, shows usage, rejects, and handles failure', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onRemind: (_chatId, ms, message) =>
+        Promise.resolve(`set ${String(ms)} ${message}`),
+    });
+
+    const ok = ctxWith(['30m', 'call', 'mom']);
+    await handlers['remind']?.(ok.ctx);
+    expect(ok.replies.some((r) => r.includes('set 1800000 call mom'))).toBe(true);
+
+    const bad = ctxWith(['later']);
+    await handlers['remind']?.(bad.ctx);
+    expect(bad.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onRemind: () => Promise.resolve('no'),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['30m', 'x'], 999);
+    await handlers['remind']?.(denied.ctx);
+    expect(denied.replies).toEqual([]);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onRemind: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const failed = ctxWith(['30m', 'x']);
+    await handlers['remind']?.(failed.ctx);
+    expect(failed.replies.some((r) => r.includes('Could not set'))).toBe(true);
+  });
 });

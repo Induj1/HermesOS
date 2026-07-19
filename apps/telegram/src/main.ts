@@ -35,11 +35,31 @@ import { telegramSchema } from './config.js';
 import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
 import { DOCS_SUBJECT, htmlToText, ingestDocs } from './rag.js';
+import { humanDuration, type Reminder } from './reminders.js';
 import { buildTeamRuntime } from './team.js';
 import { buildTools } from './tools.js';
 import { lenientWorkspaceFs } from './workspace-fs.js';
 
 const execFileAsync = promisify(execFile);
+
+/** Scheduled job payloads driven by the Scheduler poll loop. */
+type Job =
+  | { readonly kind: 'briefing' | 'ci' | 'standup' }
+  | {
+      readonly kind: 'reminder';
+      readonly id: string;
+      readonly chatId: number;
+      readonly message: string;
+    };
+
+async function loadReminders(file: string): Promise<Reminder[]> {
+  try {
+    const parsed: unknown = JSON.parse(await fsp.readFile(file, 'utf8'));
+    return Array.isArray(parsed) ? (parsed as Reminder[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 export async function main(): Promise<void> {
   const config = loadConfigFromEnv(telegramSchema);
@@ -123,6 +143,34 @@ export async function main(): Promise<void> {
   const runtime = config.enableTeam
     ? buildTeamRuntime(runtimeDeps)
     : buildAgentRuntime(runtimeDeps);
+
+  // The scheduler drives briefings, the CI watcher, standups, and reminders.
+  // Reminders persist to a file and are re-armed on start.
+  const scheduler = new Scheduler<Job>();
+  const remindersFile = path.resolve(config.dataDir, 'reminders.json');
+  let reminders = await loadReminders(remindersFile);
+  const saveReminders = (): Promise<void> =>
+    fsp.writeFile(remindersFile, JSON.stringify(reminders), 'utf8');
+
+  const onRemind = async (
+    chatId: number,
+    ms: number,
+    message: string,
+  ): Promise<string> => {
+    const id = `rem_${String(Date.now())}_${String(reminders.length)}`;
+    const reminder: Reminder = { id, chatId, atMs: Date.now() + ms, message };
+    reminders.push(reminder);
+    await saveReminders();
+    scheduler.add(
+      {
+        id,
+        trigger: { kind: 'once', atMs: reminder.atMs },
+        payload: { kind: 'reminder', ...reminder },
+      },
+      Date.now(),
+    );
+    return `⏰ Reminder set for ${humanDuration(ms)} from now: "${message}"`;
+  };
 
   // /ingest reads the docs folder, chunks + embeds each file into memory.
   const docsDir = path.resolve(config.docsDir);
@@ -254,6 +302,7 @@ export async function main(): Promise<void> {
       memory.remember({ subject, kind: 'episode', content: text }),
     onIngest,
     onIngestUrl,
+    onRemind,
     allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),
     ...(config.whisperModel === '' ? {} : { onVoice }),
@@ -273,7 +322,17 @@ export async function main(): Promise<void> {
   });
 
   // Scheduled pushes: a morning briefing, and (if CI_REPO is set) a CI watcher.
-  const scheduler = new Scheduler<{ kind: 'briefing' | 'ci' | 'standup' }>();
+  // Re-arm reminders persisted from before a restart (overdue ones fire soon).
+  for (const reminder of reminders) {
+    scheduler.add(
+      {
+        id: reminder.id,
+        trigger: { kind: 'once', atMs: reminder.atMs },
+        payload: { kind: 'reminder', ...reminder },
+      },
+      Date.now(),
+    );
+  }
   if (config.enableBriefing) {
     scheduler.add(
       {
@@ -391,14 +450,30 @@ export async function main(): Promise<void> {
     await sendAll(formatStandup(repos, new Date().toDateString()));
   };
 
-  const runJob = (kind: 'briefing' | 'ci' | 'standup'): Promise<void> => {
-    if (kind === 'briefing') return runBriefing();
-    if (kind === 'ci') return runCi();
-    return runStandup();
+  const runReminder = async (payload: {
+    id: string;
+    chatId: number;
+    message: string;
+  }): Promise<void> => {
+    await client.sendMessage({ chatId: payload.chatId, text: `⏰ ${payload.message}` });
+    reminders = reminders.filter((r) => r.id !== payload.id);
+    await saveReminders();
+  };
+  const runJob = (payload: Job): Promise<void> => {
+    switch (payload.kind) {
+      case 'briefing':
+        return runBriefing();
+      case 'ci':
+        return runCi();
+      case 'standup':
+        return runStandup();
+      case 'reminder':
+        return runReminder(payload);
+    }
   };
   const timer = setInterval(() => {
     for (const job of scheduler.poll(Date.now())) {
-      const work = runJob(job.payload.kind);
+      const work = runJob(job.payload);
       work.catch((thrown: unknown) => {
         logger.warn('scheduled job failed', {
           id: job.id,

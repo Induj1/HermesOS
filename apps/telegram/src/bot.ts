@@ -12,6 +12,7 @@ import type { AgentRuntime } from '@hermes/agent';
 import type { Logger } from '@hermes/kernel';
 import type { Handler, MessageContext } from '@hermes/telegram';
 import { AGENT_NAME, replyText } from './agent.js';
+import { parseReminder } from './reminders.js';
 import { largestPhoto, visionPrompt, type PhotoSize } from './vision.js';
 
 export interface BotDeps {
@@ -25,6 +26,8 @@ export interface BotDeps {
   readonly onIngest?: () => Promise<string>;
   /** Ingest a web page by URL into memory; returns a summary. */
   readonly onIngestUrl?: (url: string) => Promise<string>;
+  /** Schedule a reminder; returns an acknowledgement. */
+  readonly onRemind?: (chatId: number, ms: number, message: string) => Promise<string>;
   /** Describe a photo (by Telegram file id) with a vision model. */
   readonly onPhoto?: (
     fileId: string,
@@ -181,6 +184,23 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('url ingest failed', { error: (thrown as Error).message });
         await ctx.reply('Could not ingest that URL.');
+      }
+    });
+  }
+  if (deps.onRemind !== undefined) {
+    const onRemind = deps.onRemind;
+    bot.command('remind', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const parsed = parseReminder(ctx.args.join(' '));
+      if (parsed === undefined) {
+        await ctx.reply('Usage: /remind <30m|2h|1d> <message>');
+        return;
+      }
+      try {
+        await ctx.reply(await onRemind(ctx.message.chat.id, parsed.ms, parsed.message));
+      } catch (thrown) {
+        deps.logger?.error('reminder failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not set that reminder.');
       }
     });
   }

@@ -39,6 +39,12 @@ export {
 } from './team.js';
 export { largestPhoto, visionPrompt, type PhotoSize } from './vision.js';
 export {
+  humanDuration,
+  parseDuration,
+  parseReminder,
+  type Reminder,
+} from './reminders.js';
+export {
   formatResults,
   parseDuckDuckGo,
   searchTools,
