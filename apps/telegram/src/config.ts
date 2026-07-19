@@ -102,6 +102,14 @@ export const telegramSchema = {
     .describe('Comma-separated programs the shell tool may run.'),
 
   /**
+   * Command-line deny patterns (regex sources) refused by the safety guard.
+   * `SHELL_DENY`, comma-separated. Empty uses the built-in defaults (rm -rf,
+   * sudo, --force, fork bombs, curl|sh, …), which catch danger even inside
+   * `node -e`.
+   */
+  shellDeny: list().default([]).describe('Regex patterns the shell guard refuses.'),
+
+  /**
    * Timeout for a single shell command, in ms. `SHELL_TIMEOUT_MS`. Generous
    * because an `npm install` or a build easily outlasts a 30s default.
    */

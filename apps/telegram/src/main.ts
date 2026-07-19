@@ -37,6 +37,7 @@ import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
 import { DOCS_SUBJECT, htmlToText, ingestDocs } from './rag.js';
 import { humanDuration, type Reminder } from './reminders.js';
+import { guardedShell } from './shell-guard.js';
 import { buildTeamRuntime } from './team.js';
 import { buildTools } from './tools.js';
 import { lenientWorkspaceFs } from './workspace-fs.js';
@@ -98,14 +99,21 @@ export async function main(): Promise<void> {
   // model actually sends (absolute, doubled name, no leading mkdir).
   const fs = lenientWorkspaceFs(rooted(disk, workspaceDir), workspaceDir);
   const http = guarded(new FetchHttpClient(), { policy: { blockPrivate: true } });
+  const deny =
+    config.shellDeny.length > 0
+      ? config.shellDeny.map((p) => new RegExp(p, 'i'))
+      : undefined;
   const shell = config.enableShell
-    ? allowlisted(
-        new NodeShellExecutor({
-          cwd: workspaceDir,
-          timeoutMs: config.shellTimeoutMs,
-          maxOutputBytes: config.shellMaxOutputBytes,
-        }),
-        config.shellAllowlist,
+    ? guardedShell(
+        allowlisted(
+          new NodeShellExecutor({
+            cwd: workspaceDir,
+            timeoutMs: config.shellTimeoutMs,
+            maxOutputBytes: config.shellMaxOutputBytes,
+          }),
+          config.shellAllowlist,
+        ),
+        deny,
       )
     : undefined;
 
