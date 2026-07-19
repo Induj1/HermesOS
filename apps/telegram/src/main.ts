@@ -151,6 +151,50 @@ export async function main(): Promise<void> {
     }
   };
 
+  // Render a Mermaid diagram to a PNG in the workspace, via headless Chromium and
+  // the vendored mermaid.js. Screenshots the rendered SVG at 2x for a crisp image.
+  const renderDiagram = async (mermaid: string, filename: string): Promise<string> => {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage({ deviceScaleFactor: 2 });
+      await page.setContent(
+        '<!DOCTYPE html><html><body style="margin:0">' +
+          '<div id="out" style="display:inline-block;background:#fff;padding:16px"></div>' +
+          '</body></html>',
+      );
+      await page.addScriptTag({ path: config.mermaidAsset });
+      const ok = await page.evaluate(async (src) => {
+        const g = globalThis as unknown as {
+          mermaid: {
+            initialize: (o: unknown) => void;
+            render: (id: string, s: string) => Promise<{ svg: string }>;
+          };
+          document: {
+            getElementById: (id: string) => { innerHTML: string } | null;
+          };
+        };
+        g.mermaid.initialize({ startOnLoad: false, theme: 'default' });
+        const { svg } = await g.mermaid.render('d', src);
+        const el = g.document.getElementById('out');
+        if (el === null) return false;
+        el.innerHTML = svg;
+        return true;
+      }, mermaid);
+      if (!ok) throw new Error('mermaid render produced no output');
+      const safe = path.basename(
+        filename.endsWith('.png') ? filename : `${filename}.png`,
+      );
+      const el = await page.$('#out');
+      if (el === null) throw new Error('diagram container missing');
+      const png = await el.screenshot({ type: 'png' });
+      await fs.writeFile(safe, Buffer.from(png));
+      return safe;
+    } finally {
+      await browser.close();
+    }
+  };
+
   // Run Python in the workspace (charts land there for /get). MPLBACKEND=Agg so
   // matplotlib renders headless.
   const pythonRun = async (code: string): Promise<string> => {
@@ -229,6 +273,7 @@ export async function main(): Promise<void> {
     ...(config.enablePython && config.imagegenPython !== '' ? { pythonRun } : {}),
     ...(config.enableOcr ? { ocrRun } : {}),
     ...(config.enableTranslate ? { translate } : {}),
+    ...(config.enableDiagram && config.mermaidAsset !== '' ? { renderDiagram } : {}),
   });
   const executor = toolExecutor(tools, { logger });
 
@@ -384,6 +429,34 @@ export async function main(): Promise<void> {
         body: form,
       });
       if (!res.ok) throw new Error(`sendDocument failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  // A photo captioned "scan qr": download it and decode any QR codes (OpenCV).
+  const onQr = async (fileId: string): Promise<string> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-qr-'));
+    try {
+      const img = path.join(dir, 'in.png');
+      await fsp.writeFile(img, await downloadTgFile(fileId));
+      const { stdout } = await execFileAsync(config.imagegenPython, [
+        config.qrReadScript,
+        img,
+      ]);
+      return stdout.trim();
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  // /qr <text>: generate a QR code PNG and send it back as a photo.
+  const onQrMake = async (text: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-qr-'));
+    try {
+      const out = path.join(dir, 'qr.png');
+      await execFileAsync(config.imagegenPython, [config.qrMakeScript, text, out]);
+      await sendPhoto(chatId, await fsp.readFile(out), 'qr.png');
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
     }
@@ -631,6 +704,8 @@ export async function main(): Promise<void> {
     ...(config.enableTranslate
       ? { onTranslate: (to, text) => translate(text, to) }
       : {}),
+    ...(config.imagegenPython !== '' && config.qrReadScript !== '' ? { onQr } : {}),
+    ...(config.imagegenPython !== '' && config.qrMakeScript !== '' ? { onQrMake } : {}),
     ...(config.enableImagegen &&
     config.imagegenPython !== '' &&
     config.img2imgScript !== ''

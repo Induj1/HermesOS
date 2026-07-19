@@ -81,4 +81,17 @@ describe('buildTools', () => {
     expect(both).toContain('image.ocr');
     expect(both).toContain('text.translate');
   });
+
+  it('includes diagram.render only when a render port is supplied', () => {
+    const base = {
+      fs: new MemoryFileSystem(),
+      http: FakeHttpClient.respondingWith(''),
+    };
+    expect(buildTools(base).map((tool) => tool.name)).not.toContain('diagram.render');
+    const withDiagram = buildTools({
+      ...base,
+      renderDiagram: (_m, f) => Promise.resolve(f),
+    });
+    expect(withDiagram.map((tool) => tool.name)).toContain('diagram.render');
+  });
 });

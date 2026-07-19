@@ -241,6 +241,38 @@ describe('handleMessage', () => {
     );
   });
 
+  it('scans a QR-captioned photo, reports empty, and apologises on failure', async () => {
+    const seen: string[] = [];
+    const ok = fakePhotoContext('scan qr', [{ file_id: 'q', width: 400, height: 400 }]);
+    await handleMessage(ok.ctx, {
+      runtime: runtimeWith('x'),
+      onQr: (fileId) => {
+        seen.push(fileId);
+        return Promise.resolve('https://example.com');
+      },
+      onPhoto: () => Promise.resolve('should not run'),
+    });
+    expect(seen).toEqual(['q']);
+    expect(ok.replies).toContain('https://example.com');
+
+    const empty = fakePhotoContext('read the qr', [
+      { file_id: 'e', width: 9, height: 9 },
+    ]);
+    await handleMessage(empty.ctx, {
+      runtime: runtimeWith('x'),
+      onQr: () => Promise.resolve('  '),
+    });
+    expect(empty.replies.some((r) => /no QR code found/i.test(r))).toBe(true);
+
+    const fail = fakePhotoContext('decode qr', [{ file_id: 'f', width: 9, height: 9 }]);
+    await handleMessage(fail.ctx, {
+      runtime: runtimeWith('x'),
+      onQr: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(fail.replies.some((r) => /could not scan/i.test(r))).toBe(true);
+  });
+
   it('transcribes an uploaded audio file and returns the transcript', async () => {
     const replies: string[] = [];
     const ctx = {
@@ -708,6 +740,52 @@ describe('registerHandlers', () => {
     const fail = ctxWith(['x']);
     await handlers['music']?.(fail.ctx);
     expect(fail.replies.some((r) => r.includes('Could not generate'))).toBe(true);
+  });
+
+  it('registers /qr: generates, shows usage, rejects, and handles failure', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const made: { text: string; chatId: number }[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onQrMake: (text, chatId) => {
+        made.push({ text, chatId });
+        return Promise.resolve();
+      },
+    });
+
+    const ok = ctxWith(['https://example.com']);
+    await handlers['qr']?.(ok.ctx);
+    expect(made).toEqual([{ text: 'https://example.com', chatId: 42 }]);
+
+    const usage = ctxWith([]);
+    await handlers['qr']?.(usage.ctx);
+    expect(usage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onQrMake: () => Promise.resolve(),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['hi'], 999);
+    await handlers['qr']?.(denied.ctx);
+    expect(denied.replies).toEqual([]);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onQrMake: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const fail = ctxWith(['hi']);
+    await handlers['qr']?.(fail.ctx);
+    expect(fail.replies.some((r) => r.includes('Could not generate that QR'))).toBe(
+      true,
+    );
   });
 
   it('registers /translate: translates, shows usage, rejects, and handles failure', async () => {

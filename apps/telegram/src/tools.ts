@@ -15,6 +15,7 @@ import type { HttpClient } from '@hermes/tools-http';
 import { shellTools } from '@hermes/tools-shell';
 import type { ShellExecutor } from '@hermes/tools-shell';
 import { browserTools, type BrowsePort } from './browser.js';
+import { diagramTools, type DiagramRenderPort } from './diagram.js';
 import { docTools, type RenderPdfPort } from './doc.js';
 import { githubTools } from './github.js';
 import { ocrTools, type OcrRunPort } from './ocr.js';
@@ -39,6 +40,8 @@ export interface ToolDeps {
   readonly ocrRun?: OcrRunPort;
   /** When present, a text.translate tool is included. */
   readonly translate?: TranslatePort;
+  /** When present, a diagram.render tool (Mermaid → PNG) is included. */
+  readonly renderDiagram?: DiagramRenderPort;
 }
 
 /** Build the agent's tools over the given ports. Filesystem and HTTP always;
@@ -58,5 +61,8 @@ export function buildTools(deps: ToolDeps): readonly HermesTool[] {
   if (deps.pythonRun !== undefined) tools.push(...pythonTools(deps.pythonRun));
   if (deps.ocrRun !== undefined) tools.push(...ocrTools(deps.ocrRun));
   if (deps.translate !== undefined) tools.push(...translateTools(deps.translate));
+  if (deps.renderDiagram !== undefined) {
+    tools.push(...diagramTools(deps.renderDiagram));
+  }
   return tools;
 }

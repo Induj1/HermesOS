@@ -230,6 +230,24 @@ export const telegramSchema = {
    */
   enableTranslate: boolean().default(true).describe('Enable translation.'),
 
+  /**
+   * Give the agent a diagram.render tool (Mermaid → PNG). `ENABLE_DIAGRAM`.
+   * Renders via headless Chromium (needs ENABLE_BROWSER's Playwright) and a
+   * vendored mermaid.js at MERMAID_ASSET.
+   */
+  enableDiagram: boolean().default(false).describe('Enable Mermaid diagrams.'),
+
+  /** Path to the vendored mermaid.min.js used to render diagrams. `MERMAID_ASSET`. */
+  mermaidAsset: string().default('').describe('Path to mermaid.min.js.'),
+
+  /**
+   * QR codes: a /qr command (generate) and photo scanning ("scan qr"). The
+   * generate/read scripts run via IMAGEGEN_PYTHON. `QR_MAKE_SCRIPT` / `QR_READ_SCRIPT`.
+   * Empty disables that direction.
+   */
+  qrMakeScript: string().default('').describe('QR generate script (empty = off).'),
+  qrReadScript: string().default('').describe('QR read script (empty = off).'),
+
   /** Serve a read-only dashboard on 127.0.0.1:PORT. `DASHBOARD_PORT`. 0 = off. */
   dashboardPort: integer().default(0).describe('Local dashboard port (0 = off).'),
 

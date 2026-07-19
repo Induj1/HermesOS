@@ -21,6 +21,8 @@ export {
   translateTools,
   type TranslatePort,
 } from './translate.js';
+export { diagramTools, type DiagramRenderPort } from './diagram.js';
+export { isQrScanRequest } from './qr.js';
 export { lenientWorkspaceFs } from './workspace-fs.js';
 export {
   MemoryStore,

@@ -15,6 +15,7 @@ import { AGENT_NAME, replyText } from './agent.js';
 import { isRemoveBgRequest } from './bg.js';
 import type { ConversationHistory } from './conversation.js';
 import { isOcrRequest } from './ocr.js';
+import { isQrScanRequest } from './qr.js';
 import { parseReminder } from './reminders.js';
 import { parseTranslateCommand } from './translate.js';
 import {
@@ -53,6 +54,10 @@ export interface BotDeps {
   ) => Promise<string>;
   /** Read the text out of a photo (by Telegram file id) with OCR. */
   readonly onOcr?: (fileId: string) => Promise<string>;
+  /** Decode a QR code in a photo (by Telegram file id) to its payload. */
+  readonly onQr?: (fileId: string) => Promise<string>;
+  /** Generate a QR code from text and send it to the chat as a photo. */
+  readonly onQrMake?: (text: string, chatId: number) => Promise<void>;
   /** Remove a photo's background and send back a transparent cutout. */
   readonly onRemoveBg?: (fileId: string, chatId: number) => Promise<void>;
   /** Transcribe a voice note (by Telegram file id) to text. */
@@ -150,6 +155,17 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
       } catch (thrown) {
         deps.logger?.error('ocr failed', { error: (thrown as Error).message });
         await ctx.reply('I could not read that image.');
+      }
+      return;
+    }
+    if (isQrScanRequest(cap) && deps.onQr !== undefined) {
+      await ctx.reply('🔳 Scanning the QR code…');
+      try {
+        const payload = (await deps.onQr(largest.file_id)).trim();
+        await ctx.reply(payload === '' ? '(no QR code found in that image)' : payload);
+      } catch (thrown) {
+        deps.logger?.error('qr scan failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not scan that QR code.');
       }
       return;
     }
@@ -379,6 +395,23 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('music failed', { error: (thrown as Error).message });
         await ctx.reply('Could not generate that music.');
+      }
+    });
+  }
+  if (deps.onQrMake !== undefined) {
+    const onQrMake = deps.onQrMake;
+    bot.command('qr', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const text = ctx.args.join(' ').trim();
+      if (text === '') {
+        await ctx.reply('Usage: /qr <text or url>');
+        return;
+      }
+      try {
+        await onQrMake(text, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('qr make failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not generate that QR code.');
       }
     });
   }

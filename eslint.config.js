@@ -16,6 +16,7 @@ export default tseslint.config(
       '**/*.tsbuildinfo',
       '**/hermes-workspace/**',
       '**/.venv-sd/**',
+      '**/assets/**',
     ],
   },
 
