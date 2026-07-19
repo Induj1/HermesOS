@@ -9,6 +9,7 @@
 export { telegramSchema, type TelegramConfig } from './config.js';
 export { buildTools, type ToolDeps } from './tools.js';
 export { DEFAULT_DENY, guardedShell } from './shell-guard.js';
+export { renderDashboard, type DashboardData } from './dashboard.js';
 export { browserTools, type BrowsePort } from './browser.js';
 export { docTools, type RenderPdfPort } from './doc.js';
 export { githubTools } from './github.js';

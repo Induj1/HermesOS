@@ -33,6 +33,7 @@ import {
 import { registerHandlers } from './bot.js';
 import { telegramSchema } from './config.js';
 import { ConversationHistory } from './conversation.js';
+import { renderDashboard } from './dashboard.js';
 import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
 import { DOCS_SUBJECT, htmlToText, ingestDocs } from './rag.js';
@@ -448,6 +449,29 @@ export async function main(): Promise<void> {
     }
   };
 
+  // /music: generate a clip with MusicGen, convert to Opus, send as a voice note.
+  const onMusic = async (prompt: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-mus-'));
+    try {
+      const wav = path.join(dir, 'music.wav');
+      const ogg = path.join(dir, 'music.ogg');
+      await execFileAsync(config.imagegenPython, [config.musicScript, prompt, wav], {
+        timeout: 300_000,
+      });
+      await execFileAsync('ffmpeg', ['-y', '-i', wav, '-c:a', 'libopus', ogg]);
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('voice', new Blob([await fsp.readFile(ogg)]), 'music.ogg');
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendVoice`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`sendVoice failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
     token: config.telegramBotToken,
@@ -467,6 +491,11 @@ export async function main(): Promise<void> {
     onIngestUrl,
     onRemind,
     onGet,
+    ...(config.enableImagegen &&
+    config.imagegenPython !== '' &&
+    config.musicScript !== ''
+      ? { onMusic }
+      : {}),
     history: new ConversationHistory(),
     allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),
@@ -496,6 +525,50 @@ export async function main(): Promise<void> {
   process.on('SIGINT', () => {
     stop('SIGINT');
   });
+
+  // Optional read-only dashboard on loopback.
+  if (config.dashboardPort > 0) {
+    const { createServer } = await import('node:http');
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(
+        renderDashboard({
+          bot: me.username ?? me.first_name,
+          model: config.ollamaModel,
+          memoryCount: memory.size,
+          subjects: memory.subjects(),
+          reminders: reminders.map((r) => ({
+            message: r.message,
+            inMinutes: (r.atMs - Date.now()) / 60_000,
+          })),
+          features: [
+            'agent',
+            'team',
+            'memory',
+            'RAG',
+            'vision',
+            'voice',
+            'img2img',
+            'browser',
+            'imagegen',
+            'music',
+            'github',
+            'briefing',
+            'standup',
+            'reminders',
+          ],
+        }),
+      );
+    });
+    server.listen(config.dashboardPort, '127.0.0.1', () => {
+      logger.info('dashboard', {
+        url: `http://127.0.0.1:${String(config.dashboardPort)}`,
+      });
+    });
+    controller.signal.addEventListener('abort', () => {
+      server.close();
+    });
+  }
 
   // Scheduled pushes: a morning briefing, and (if CI_REPO is set) a CI watcher.
   // Re-arm reminders persisted from before a restart (overdue ones fire soon).

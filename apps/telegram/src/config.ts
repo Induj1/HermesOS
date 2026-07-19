@@ -200,6 +200,12 @@ export const telegramSchema = {
   /** GitHub token for the GitHub tools. `GITHUB_TOKEN`. Empty disables them. */
   githubToken: string().secret().default('').describe('GitHub token (empty = off).'),
 
+  /** MusicGen script for /music (uses IMAGEGEN_PYTHON). `MUSIC_SCRIPT`. Empty = off. */
+  musicScript: string().default('').describe('MusicGen script path (empty = off).'),
+
+  /** Serve a read-only dashboard on 127.0.0.1:PORT. `DASHBOARD_PORT`. 0 = off. */
+  dashboardPort: integer().default(0).describe('Local dashboard port (0 = off).'),
+
   /**
    * Where persistent data (the memory store) lives. `DATA_DIR`. Kept out of the
    * agent's writable workspace so the model cannot tamper with its own memory.

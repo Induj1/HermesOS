@@ -40,6 +40,8 @@ export interface BotDeps {
   readonly onImagine?: (prompt: string, chatId: number) => Promise<void>;
   /** Send a workspace file to the chat as a document. */
   readonly onGet?: (filePath: string, chatId: number) => Promise<void>;
+  /** Generate a music clip from a prompt and send it. */
+  readonly onMusic?: (prompt: string, chatId: number) => Promise<void>;
   /** Describe a photo (by Telegram file id) with a vision model. */
   readonly onPhoto?: (
     fileId: string,
@@ -292,6 +294,24 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('get failed', { error: (thrown as Error).message });
         await ctx.reply('Could not find or send that file.');
+      }
+    });
+  }
+  if (deps.onMusic !== undefined) {
+    const onMusic = deps.onMusic;
+    bot.command('music', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const prompt = ctx.args.join(' ').trim();
+      if (prompt === '') {
+        await ctx.reply('Usage: /music <description>');
+        return;
+      }
+      await ctx.reply('🎵 Composing (this can take a minute)…');
+      try {
+        await onMusic(prompt, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('music failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not generate that music.');
       }
     });
   }

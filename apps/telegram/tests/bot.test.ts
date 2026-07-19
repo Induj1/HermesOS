@@ -544,4 +544,39 @@ describe('registerHandlers', () => {
     await handlers['get']?.(fail.ctx);
     expect(fail.replies.some((r) => r.includes('Could not find'))).toBe(true);
   });
+
+  it('registers /music: generates, shows usage, and handles failure', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const made: string[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onMusic: (prompt) => {
+        made.push(prompt);
+        return Promise.resolve();
+      },
+    });
+
+    const ok = ctxWith(['lofi', 'beat']);
+    await handlers['music']?.(ok.ctx);
+    expect(made).toEqual(['lofi beat']);
+
+    const usage = ctxWith([]);
+    await handlers['music']?.(usage.ctx);
+    expect(usage.replies.some((r) => r.includes('Usage'))).toBe(true);
+
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onMusic: () => Promise.reject(new Error('x')),
+      logger: spyLogger(),
+    });
+    const fail = ctxWith(['x']);
+    await handlers['music']?.(fail.ctx);
+    expect(fail.replies.some((r) => r.includes('Could not generate'))).toBe(true);
+  });
 });
