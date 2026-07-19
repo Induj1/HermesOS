@@ -1,7 +1,12 @@
 import type { Handler, MessageContext } from '@hermes/telegram';
 import { describe, expect, it } from 'vitest';
 import { buildAgentRuntime } from '../src/agent.js';
-import { handleMessage, registerHandlers, type CommandBot } from '../src/bot.js';
+import {
+  handleMessage,
+  isAllowed,
+  registerHandlers,
+  type CommandBot,
+} from '../src/bot.js';
 import { toolExecutor } from '../src/executor.js';
 import { answer, BrokenModel, ScriptedModel, spyLogger } from './helpers.js';
 
@@ -45,7 +50,25 @@ const runtimeWith = (...responses: Parameters<typeof answer>[0][]) =>
     executor: toolExecutor([]),
   });
 
+describe('isAllowed', () => {
+  it('permits everyone when the allowlist is empty', () => {
+    expect(isAllowed('42')).toBe(true);
+    expect(isAllowed('42', [])).toBe(true);
+  });
+  it('restricts to the allowlist when set', () => {
+    expect(isAllowed('42', ['42'])).toBe(true);
+    expect(isAllowed('99', ['42'])).toBe(false);
+  });
+});
+
 describe('handleMessage', () => {
+  it('rejects a chat that is not on the allowlist', async () => {
+    const { ctx, replies } = fakeContext('do something');
+    await handleMessage(ctx, { runtime: runtimeWith('nope'), allowedChatIds: ['7'] });
+    expect(replies[0]).toMatch(/private/i);
+    expect(replies[0]).toContain('42'); // shows the chat id to add
+  });
+
   it('prompts for input when the message is blank', async () => {
     const { ctx, replies } = fakeContext('   ');
     await handleMessage(ctx, { runtime: runtimeWith('unused') });

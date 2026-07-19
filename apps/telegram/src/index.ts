@@ -45,6 +45,7 @@ export {
 } from './agent.js';
 export {
   handleMessage,
+  isAllowed,
   registerHandlers,
   type BotDeps,
   type CommandBot,

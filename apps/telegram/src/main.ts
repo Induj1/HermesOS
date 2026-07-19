@@ -211,6 +211,7 @@ export async function main(): Promise<void> {
     remember: (subject, text) =>
       memory.remember({ subject, kind: 'episode', content: text }),
     onIngest,
+    allowedChatIds: config.allowedChatIds,
     ...(config.visionModel === '' ? {} : { onPhoto }),
     ...(config.whisperModel === '' ? {} : { onVoice }),
   });

@@ -217,6 +217,13 @@ export const telegramSchema = {
   /** Minimum log level. `LOG_LEVEL`. */
   logLevel: oneOf(['debug', 'info', 'warn', 'error']).default('info'),
 
+  /**
+   * Chat ids allowed to use the bot. `ALLOWED_CHAT_IDS`, comma-separated. Empty
+   * means everyone — set this to your own chat id, because the shell tool runs
+   * code. Message the bot once to see your id in the "private" reply.
+   */
+  allowedChatIds: list().default([]).describe('Chat ids allowed to use the bot.'),
+
   /** A name stamped on every log line. `SERVICE_NAME`. */
   serviceName: string().default('hermes-telegram'),
 };

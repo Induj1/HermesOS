@@ -31,6 +31,13 @@ export interface BotDeps {
   ) => Promise<string>;
   /** Transcribe a voice note (by Telegram file id) to text. */
   readonly onVoice?: (fileId: string) => Promise<string>;
+  /** Chat ids allowed to use the bot. Empty/undefined = everyone. */
+  readonly allowedChatIds?: readonly string[];
+}
+
+/** Whether a chat may use the bot. An empty allowlist permits everyone. */
+export function isAllowed(subject: string, allowed?: readonly string[]): boolean {
+  return allowed === undefined || allowed.length === 0 || allowed.includes(subject);
 }
 
 /** Photo + caption off the raw update — fields @hermes/telegram does not type. */
@@ -53,6 +60,14 @@ export interface CommandBot {
 export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise<void> {
   // The chat id scopes memory: each chat recalls only its own history.
   const subject = String(ctx.message.chat.id);
+
+  // Access control: the bot runs shell commands, so it must not answer strangers.
+  if (!isAllowed(subject, deps.allowedChatIds)) {
+    await ctx.reply(
+      `Sorry, this bot is private. If it is yours, add this chat id to ALLOWED_CHAT_IDS: ${subject}`,
+    );
+    return;
+  }
 
   // A photo message: describe it with the vision model instead of the agent.
   const { photo, caption } = photoOf(ctx.message);
@@ -127,6 +142,7 @@ export function registerHandlers<TBot extends CommandBot>(
   if (deps.onIngest !== undefined) {
     const onIngest = deps.onIngest;
     bot.command('ingest', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
       await ctx.reply('Ingesting documents…');
       try {
         await ctx.reply(await onIngest());
