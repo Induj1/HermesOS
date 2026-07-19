@@ -292,6 +292,15 @@ export const telegramSchema = {
    */
   enableMusicVideo: boolean().default(false).describe('Enable /musicvideo.'),
 
+  /**
+   * Photo studio scripts, run via IMAGEGEN_PYTHON. A photo captioned
+   * "blur faces" / "meme: top | bottom" / "sticker" triggers the matching one.
+   * `BLUR_FACES_SCRIPT` / `MEME_SCRIPT` / `STICKER_SCRIPT`. Empty disables that one.
+   */
+  blurFacesScript: string().default('').describe('Face-blur script (empty = off).'),
+  memeScript: string().default('').describe('Meme script (empty = off).'),
+  stickerScript: string().default('').describe('Sticker script (empty = off).'),
+
   /** Serve a read-only dashboard on 127.0.0.1:PORT. `DASHBOARD_PORT`. 0 = off. */
   dashboardPort: integer().default(0).describe('Local dashboard port (0 = off).'),
 

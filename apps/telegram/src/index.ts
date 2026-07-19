@@ -44,6 +44,12 @@ export {
 export { shouldIngestPath } from './repo.js';
 export { isExtractRequest } from './extract.js';
 export {
+  isBlurFacesRequest,
+  isMemeRequest,
+  isStickerRequest,
+  parseMeme,
+} from './photo-fx.js';
+export {
   formatSchedule,
   localCronToUtc,
   parseSchedule,

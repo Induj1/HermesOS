@@ -16,6 +16,12 @@ import { isRemoveBgRequest } from './bg.js';
 import type { ConversationHistory } from './conversation.js';
 import { isExtractRequest } from './extract.js';
 import { isOcrRequest } from './ocr.js';
+import {
+  isBlurFacesRequest,
+  isMemeRequest,
+  isStickerRequest,
+  parseMeme,
+} from './photo-fx.js';
 import { isQrScanRequest } from './qr.js';
 import { parseReminder } from './reminders.js';
 import { parseSchedule } from './schedules.js';
@@ -82,6 +88,17 @@ export interface BotDeps {
   readonly onQrMake?: (text: string, chatId: number) => Promise<void>;
   /** Remove a photo's background and send back a transparent cutout. */
   readonly onRemoveBg?: (fileId: string, chatId: number) => Promise<void>;
+  /** Blur the faces in a photo and send it back. */
+  readonly onBlurFaces?: (fileId: string, chatId: number) => Promise<void>;
+  /** Add meme captions to a photo and send it back. */
+  readonly onMeme?: (
+    fileId: string,
+    top: string,
+    bottom: string,
+    chatId: number,
+  ) => Promise<void>;
+  /** Turn a photo into a Telegram sticker and send it. */
+  readonly onSticker?: (fileId: string, chatId: number) => Promise<void>;
   /** Transcribe a voice note (by Telegram file id) to text. */
   readonly onVoice?: (fileId: string) => Promise<string>;
   /** Transcribe an uploaded audio/video file (by Telegram file id) to text. */
@@ -198,6 +215,37 @@ export async function handleMessage(ctx: MessageContext, deps: BotDeps): Promise
       } catch (thrown) {
         deps.logger?.error('qr scan failed', { error: (thrown as Error).message });
         await ctx.reply('I could not scan that QR code.');
+      }
+      return;
+    }
+    if (isMemeRequest(cap) && deps.onMeme !== undefined) {
+      await ctx.reply('😂 Making your meme…');
+      try {
+        const { top, bottom } = parseMeme(cap);
+        await deps.onMeme(largest.file_id, top, bottom, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('meme failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not make that meme.');
+      }
+      return;
+    }
+    if (isBlurFacesRequest(cap) && deps.onBlurFaces !== undefined) {
+      await ctx.reply('🕶 Blurring faces…');
+      try {
+        await deps.onBlurFaces(largest.file_id, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('blur faces failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not blur the faces.');
+      }
+      return;
+    }
+    if (isStickerRequest(cap) && deps.onSticker !== undefined) {
+      await ctx.reply('✨ Making a sticker…');
+      try {
+        await deps.onSticker(largest.file_id, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('sticker failed', { error: (thrown as Error).message });
+        await ctx.reply('I could not make that sticker.');
       }
       return;
     }

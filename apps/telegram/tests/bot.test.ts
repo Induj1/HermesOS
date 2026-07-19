@@ -266,6 +266,80 @@ describe('handleMessage', () => {
     );
   });
 
+  it('routes photo-studio captions: meme, blur faces, sticker', async () => {
+    const memes: { id: string; top: string; bottom: string }[] = [];
+    const meme = fakePhotoContext('meme: hello | world', [
+      { file_id: 'm', width: 600, height: 600 },
+    ]);
+    await handleMessage(meme.ctx, {
+      runtime: runtimeWith('x'),
+      onMeme: (id, top, bottom) => {
+        memes.push({ id, top, bottom });
+        return Promise.resolve();
+      },
+      onPhoto: () => Promise.resolve('should not run'),
+    });
+    expect(memes).toEqual([{ id: 'm', top: 'hello', bottom: 'world' }]);
+
+    const blurred: string[] = [];
+    const blur = fakePhotoContext('blur faces', [
+      { file_id: 'b', width: 600, height: 600 },
+    ]);
+    await handleMessage(blur.ctx, {
+      runtime: runtimeWith('x'),
+      onBlurFaces: (id) => {
+        blurred.push(id);
+        return Promise.resolve();
+      },
+    });
+    expect(blurred).toEqual(['b']);
+
+    const stickers: string[] = [];
+    const stk = fakePhotoContext('sticker', [
+      { file_id: 's', width: 600, height: 600 },
+    ]);
+    await handleMessage(stk.ctx, {
+      runtime: runtimeWith('x'),
+      onSticker: (id) => {
+        stickers.push(id);
+        return Promise.resolve();
+      },
+    });
+    expect(stickers).toEqual(['s']);
+  });
+
+  it('apologises when a photo-studio effect fails', async () => {
+    const meme = fakePhotoContext('meme: a | b', [
+      { file_id: 'm', width: 9, height: 9 },
+    ]);
+    await handleMessage(meme.ctx, {
+      runtime: runtimeWith('x'),
+      onMeme: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(meme.replies.some((r) => /could not make that meme/i.test(r))).toBe(true);
+
+    const blur = fakePhotoContext('censor faces', [
+      { file_id: 'b', width: 9, height: 9 },
+    ]);
+    await handleMessage(blur.ctx, {
+      runtime: runtimeWith('x'),
+      onBlurFaces: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(blur.replies.some((r) => /could not blur/i.test(r))).toBe(true);
+
+    const stk = fakePhotoContext('make a sticker', [
+      { file_id: 's', width: 9, height: 9 },
+    ]);
+    await handleMessage(stk.ctx, {
+      runtime: runtimeWith('x'),
+      onSticker: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    expect(stk.replies.some((r) => /could not make that sticker/i.test(r))).toBe(true);
+  });
+
   it('scans a QR-captioned photo, reports empty, and apologises on failure', async () => {
     const seen: string[] = [];
     const ok = fakePhotoContext('scan qr', [{ file_id: 'q', width: 400, height: 400 }]);

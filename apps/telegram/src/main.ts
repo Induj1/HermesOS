@@ -558,6 +558,68 @@ export async function main(): Promise<void> {
     }
   };
 
+  // A photo captioned "blur faces": detect and blur faces (OpenCV), send it back.
+  const onBlurFaces = async (fileId: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-face-'));
+    try {
+      const inPath = path.join(dir, 'in.png');
+      const out = path.join(dir, 'blurred.png');
+      await fsp.writeFile(inPath, await downloadTgFile(fileId));
+      await execFileAsync(config.imagegenPython, [config.blurFacesScript, inPath, out]);
+      await sendPhoto(chatId, await fsp.readFile(out), 'blurred.png');
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  // A photo captioned "meme: top | bottom": caption it (Pillow) and send it back.
+  const onMeme = async (
+    fileId: string,
+    top: string,
+    bottom: string,
+    chatId: number,
+  ): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-meme-'));
+    try {
+      const inPath = path.join(dir, 'in.png');
+      const out = path.join(dir, 'meme.png');
+      await fsp.writeFile(inPath, await downloadTgFile(fileId));
+      await execFileAsync(config.imagegenPython, [
+        config.memeScript,
+        inPath,
+        out,
+        top,
+        bottom,
+      ]);
+      await sendPhoto(chatId, await fsp.readFile(out), 'meme.png');
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  // A photo captioned "sticker": cut it out and send a 512px WebP sticker.
+  const onSticker = async (fileId: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-stk-'));
+    try {
+      const inPath = path.join(dir, 'in.png');
+      const out = path.join(dir, 'sticker.webp');
+      await fsp.writeFile(inPath, await downloadTgFile(fileId));
+      await execFileAsync(config.imagegenPython, [config.stickerScript, inPath, out], {
+        timeout: 300_000,
+      });
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('sticker', new Blob([await fsp.readFile(out)]), 'sticker.webp');
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendSticker`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`sendSticker failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // A photo captioned "scan qr": download it and decode any QR codes (OpenCV).
   const onQr = async (fileId: string): Promise<string> => {
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-qr-'));
@@ -975,6 +1037,13 @@ export async function main(): Promise<void> {
       : {}),
     ...(config.enableOcr && config.enableExtract ? { onExtract } : {}),
     ...(config.enableSchedules ? { onSchedule, onSchedules, onUnschedule } : {}),
+    ...(config.imagegenPython !== '' && config.blurFacesScript !== ''
+      ? { onBlurFaces }
+      : {}),
+    ...(config.imagegenPython !== '' && config.memeScript !== '' ? { onMeme } : {}),
+    ...(config.imagegenPython !== '' && config.stickerScript !== ''
+      ? { onSticker }
+      : {}),
   });
 
   const controller = new AbortController();
