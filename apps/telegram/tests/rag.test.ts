@@ -4,7 +4,13 @@ import path from 'node:path';
 import { systemClock } from '@hermes/kernel';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MemoryStore } from '../src/memory-store.js';
-import { DOCS_SUBJECT, chunkText, htmlToText, ingestDocs } from '../src/rag.js';
+import {
+  DOCS_SUBJECT,
+  REPO_SUBJECT,
+  chunkText,
+  htmlToText,
+  ingestDocs,
+} from '../src/rag.js';
 
 describe('htmlToText', () => {
   it('drops script/style, tags, and entities', () => {
@@ -58,5 +64,21 @@ describe('ingestDocs', () => {
     expect(count).toBe(4); // notes.md: 1 chunk; big.md: 3 chunks (2000 / 800)
     const hits = await store.recall(DOCS_SUBJECT, 'coffee', { limit: 5 });
     expect(hits.some((h) => h.memory.content.startsWith('[notes.md]'))).toBe(true);
+  });
+
+  it('stores under an explicit subject when given (repo Q&A)', async () => {
+    const store = await MemoryStore.load({ embed, filePath: FILE, clock: systemClock });
+    const count = await ingestDocs(
+      store,
+      [{ name: 'app/main.ts', content: 'export const coffee = 1;' }],
+      REPO_SUBJECT,
+    );
+    expect(count).toBe(1);
+    const docsHits = await store.recall(DOCS_SUBJECT, 'coffee', { limit: 5 });
+    expect(docsHits).toEqual([]); // not under the docs subject
+    const repoHits = await store.recall(REPO_SUBJECT, 'coffee', { limit: 5 });
+    expect(repoHits.some((h) => h.memory.content.startsWith('[app/main.ts]'))).toBe(
+      true,
+    );
   });
 });

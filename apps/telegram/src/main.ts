@@ -36,7 +36,8 @@ import { ConversationHistory } from './conversation.js';
 import { renderDashboard } from './dashboard.js';
 import { toolExecutor } from './executor.js';
 import { MemoryStore, type EmbedFn } from './memory-store.js';
-import { DOCS_SUBJECT, htmlToText, ingestDocs } from './rag.js';
+import { DOCS_SUBJECT, REPO_SUBJECT, htmlToText, ingestDocs } from './rag.js';
+import { shouldIngestPath } from './repo.js';
 import { humanDuration, type Reminder } from './reminders.js';
 import { guardedShell } from './shell-guard.js';
 import { buildTeamRuntime } from './team.js';
@@ -302,7 +303,10 @@ export async function main(): Promise<void> {
     logger,
     clock: systemClock,
     // Recall the chat's own memories plus any ingested documents.
-    memory: memory.asMemoryAdapter([DOCS_SUBJECT]) as unknown as MemoryAdapter,
+    memory: memory.asMemoryAdapter([
+      DOCS_SUBJECT,
+      REPO_SUBJECT,
+    ]) as unknown as MemoryAdapter,
     recall: config.memoryRecall,
   };
   const runtime = config.enableTeam
@@ -378,6 +382,35 @@ export async function main(): Promise<void> {
     const text = htmlToText(await res.text());
     const chunks = await ingestDocs(memory, [{ name: url, content: text }]);
     return `Ingested ${url} into ${String(chunks)} chunks. Ask me about it!`;
+  };
+
+  // /repo: walk a local source repo, keep the source files, and embed them under
+  // REPO_SUBJECT so questions are answered across the whole codebase.
+  const onRepo = async (repoPath: string): Promise<string> => {
+    const root = path.resolve(repoPath);
+    const stat = await fsp.stat(root).catch(() => null);
+    if (stat?.isDirectory() !== true) {
+      return `Not a directory: ${repoPath}`;
+    }
+    const repoName = path.basename(root);
+    const files = await walkFiles(root);
+    const docs: { name: string; content: string }[] = [];
+    for (const full of files) {
+      const rel = path.relative(root, full);
+      if (!shouldIngestPath(rel)) continue;
+      const info = await fsp.stat(full).catch(() => null);
+      if (info === null || info.size > 200_000) continue; // skip huge files
+      try {
+        const content = await fsp.readFile(full, 'utf8');
+        if (content.includes('\u0000')) continue; // binary sniff
+        docs.push({ name: `${repoName}/${rel}`, content });
+      } catch {
+        // Unreadable/binary file — skip it.
+      }
+    }
+    if (docs.length === 0) return `No source files found under ${repoPath}.`;
+    const chunks = await ingestDocs(memory, docs, REPO_SUBJECT);
+    return `Indexed ${String(docs.length)} file(s) from ${repoName} into ${String(chunks)} chunks. Ask me anything about the code!`;
   };
 
   // A photo: download it via the raw Telegram Bot API and describe it with the
@@ -667,6 +700,80 @@ export async function main(): Promise<void> {
     }
   };
 
+  // /audiobook <path>: narrate a workspace doc (.md/.txt/.pdf) to an MP3 and send
+  // it as an audio track. Reuses the same TTS engine as voice replies.
+  const onAudiobook = async (wsPath: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-book-'));
+    try {
+      const bytes = Buffer.from(await fs.readFile(wsPath));
+      let text: string;
+      if (wsPath.toLowerCase().endsWith('.pdf')) {
+        const pdf = path.join(dir, 'in.pdf');
+        await fsp.writeFile(pdf, bytes);
+        const { stdout } = await execFileAsync('pdftotext', [pdf, '-']);
+        text = stdout;
+      } else {
+        text = bytes.toString('utf8');
+      }
+      text = text.replace(/\s+/g, ' ').trim().slice(0, config.audiobookMaxChars);
+      if (text === '') throw new Error('nothing to narrate');
+      const raw = path.join(dir, config.ttsMode === 'piper' ? 'out.wav' : 'out.aiff');
+      const mp3 = path.join(dir, 'audiobook.mp3');
+      if (config.ttsMode === 'piper') {
+        const txt = path.join(dir, 'in.txt');
+        await fsp.writeFile(txt, text);
+        await execFileAsync(
+          'sh',
+          [
+            '-c',
+            'exec "$1" -m "$2" -f "$3" < "$4"',
+            'sh',
+            config.piperBin,
+            config.piperModel,
+            raw,
+            txt,
+          ],
+          { timeout: 600_000 },
+        );
+      } else {
+        await execFileAsync(config.ttsCommand, ['-o', raw, text], { timeout: 600_000 });
+      }
+      await execFileAsync('ffmpeg', ['-y', '-i', raw, '-b:a', '96k', mp3]);
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('title', path.basename(wsPath));
+      form.append('audio', new Blob([await fsp.readFile(mp3)]), 'audiobook.mp3');
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendAudio`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`sendAudio failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  // /video <prompt>: generate a short animated clip locally and send it.
+  const onVideo = async (prompt: string, chatId: number): Promise<void> => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'hermes-vid-'));
+    try {
+      const out = path.join(dir, 'clip.mp4');
+      await execFileAsync(config.imagegenPython, [config.videoScript, prompt, out], {
+        timeout: 600_000,
+      });
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('video', new Blob([await fsp.readFile(out)]), 'clip.mp4');
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`sendVideo failed: ${String(res.status)}`);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  };
+
   // getMe doubles as a token check: a bad token rejects here, before we poll.
   const client = new TelegramClient({
     token: config.telegramBotToken,
@@ -718,6 +825,9 @@ export async function main(): Promise<void> {
     config.imagegenScript !== ''
       ? { onImagine }
       : {}),
+    ...(config.enableRepoQa ? { onRepo } : {}),
+    ...(config.enableAudiobook ? { onAudiobook } : {}),
+    ...(config.imagegenPython !== '' && config.videoScript !== '' ? { onVideo } : {}),
   });
 
   const controller = new AbortController();

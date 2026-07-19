@@ -33,7 +33,15 @@ export {
   type NewMemory,
   type ScoredItem,
 } from './memory-store.js';
-export { DOCS_SUBJECT, chunkText, htmlToText, ingestDocs, type Doc } from './rag.js';
+export {
+  DOCS_SUBJECT,
+  REPO_SUBJECT,
+  chunkText,
+  htmlToText,
+  ingestDocs,
+  type Doc,
+} from './rag.js';
+export { shouldIngestPath } from './repo.js';
 export {
   formatBriefing,
   formatCiAlert,

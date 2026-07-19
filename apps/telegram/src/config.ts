@@ -248,6 +248,31 @@ export const telegramSchema = {
   qrMakeScript: string().default('').describe('QR generate script (empty = off).'),
   qrReadScript: string().default('').describe('QR read script (empty = off).'),
 
+  /**
+   * Audiobook: /audiobook <path> narrates a workspace doc (.md/.txt/.pdf) to an
+   * MP3. `ENABLE_AUDIOBOOK`. Uses the same TTS as voice replies (Piper or say)
+   * plus ffmpeg and (for PDFs) pdftotext.
+   */
+  enableAudiobook: boolean().default(false).describe('Enable /audiobook narration.'),
+
+  /** Max characters narrated per audiobook. `AUDIOBOOK_MAX_CHARS`. */
+  audiobookMaxChars: integer()
+    .default(20_000)
+    .describe('Max characters read per audiobook.'),
+
+  /**
+   * Short video generation: /video <prompt> makes an animated clip. `VIDEO_SCRIPT`.
+   * Path to the video script; runs via IMAGEGEN_PYTHON (torch + diffusers +
+   * imageio). Empty disables it.
+   */
+  videoScript: string().default('').describe('Video-gen script path (empty = off).'),
+
+  /**
+   * Repo Q&A: /repo <path> ingests a local source repo so you can ask questions
+   * across the whole codebase. `ENABLE_REPO_QA`. Reuses the embedding store.
+   */
+  enableRepoQa: boolean().default(false).describe('Enable /repo code Q&A.'),
+
   /** Serve a read-only dashboard on 127.0.0.1:PORT. `DASHBOARD_PORT`. 0 = off. */
   dashboardPort: integer().default(0).describe('Local dashboard port (0 = off).'),
 

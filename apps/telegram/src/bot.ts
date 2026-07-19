@@ -36,6 +36,12 @@ export interface BotDeps {
   readonly onIngest?: () => Promise<string>;
   /** Ingest a web page by URL into memory; returns a summary. */
   readonly onIngestUrl?: (url: string) => Promise<string>;
+  /** Ingest a local source repo for code Q&A; returns a summary. */
+  readonly onRepo?: (path: string) => Promise<string>;
+  /** Narrate a workspace document to the chat as an audio track. */
+  readonly onAudiobook?: (path: string, chatId: number) => Promise<void>;
+  /** Generate a short animated clip from a prompt and send it. */
+  readonly onVideo?: (prompt: string, chatId: number) => Promise<void>;
   /** Schedule a reminder; returns an acknowledgement. */
   readonly onRemind?: (chatId: number, ms: number, message: string) => Promise<string>;
   /** Screenshot a URL and send it to the chat as a photo. */
@@ -395,6 +401,60 @@ export function registerHandlers<TBot extends CommandBot>(
       } catch (thrown) {
         deps.logger?.error('music failed', { error: (thrown as Error).message });
         await ctx.reply('Could not generate that music.');
+      }
+    });
+  }
+  if (deps.onRepo !== undefined) {
+    const onRepo = deps.onRepo;
+    bot.command('repo', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const repoPath = ctx.args.join(' ').trim();
+      if (repoPath === '') {
+        await ctx.reply('Usage: /repo <path to a local repo>');
+        return;
+      }
+      await ctx.reply('📚 Indexing the repo…');
+      try {
+        await ctx.reply(await onRepo(repoPath));
+      } catch (thrown) {
+        deps.logger?.error('repo index failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not index that repo.');
+      }
+    });
+  }
+  if (deps.onAudiobook !== undefined) {
+    const onAudiobook = deps.onAudiobook;
+    bot.command('audiobook', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const file = ctx.args.join(' ').trim();
+      if (file === '') {
+        await ctx.reply('Usage: /audiobook <path> (a doc in the workspace)');
+        return;
+      }
+      await ctx.reply('🎧 Narrating (this can take a moment)…');
+      try {
+        await onAudiobook(file, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('audiobook failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not narrate that document.');
+      }
+    });
+  }
+  if (deps.onVideo !== undefined) {
+    const onVideo = deps.onVideo;
+    bot.command('video', async (ctx) => {
+      if (!isAllowed(String(ctx.message.chat.id), deps.allowedChatIds)) return;
+      const prompt = ctx.args.join(' ').trim();
+      if (prompt === '') {
+        await ctx.reply('Usage: /video <prompt>');
+        return;
+      }
+      await ctx.reply('🎬 Generating a clip (this can take a minute)…');
+      try {
+        await onVideo(prompt, ctx.message.chat.id);
+      } catch (thrown) {
+        deps.logger?.error('video failed', { error: (thrown as Error).message });
+        await ctx.reply('Could not generate that video.');
       }
     });
   }

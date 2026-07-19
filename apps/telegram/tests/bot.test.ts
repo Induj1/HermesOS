@@ -742,6 +742,88 @@ describe('registerHandlers', () => {
     expect(fail.replies.some((r) => r.includes('Could not generate'))).toBe(true);
   });
 
+  it('registers /repo, /audiobook, /video: run, show usage, reject, and fail', async () => {
+    const handlers: Record<string, Handler> = {};
+    const bot: CommandBot = {
+      command: (name, handler) => {
+        handlers[name] = handler;
+      },
+      onText: () => undefined,
+    };
+    const repos: string[] = [];
+    const books: string[] = [];
+    const videos: string[] = [];
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onRepo: (p) => {
+        repos.push(p);
+        return Promise.resolve(`Indexed ${p}`);
+      },
+      onAudiobook: (p) => {
+        books.push(p);
+        return Promise.resolve();
+      },
+      onVideo: (prompt) => {
+        videos.push(prompt);
+        return Promise.resolve();
+      },
+    });
+
+    const repo = ctxWith(['/Users/me/proj']);
+    await handlers['repo']?.(repo.ctx);
+    expect(repos).toEqual(['/Users/me/proj']);
+    expect(repo.replies.some((r) => r.includes('Indexed'))).toBe(true);
+
+    const book = ctxWith(['notes.md']);
+    await handlers['audiobook']?.(book.ctx);
+    expect(books).toEqual(['notes.md']);
+
+    const vid = ctxWith(['a', 'spinning', 'galaxy']);
+    await handlers['video']?.(vid.ctx);
+    expect(videos).toEqual(['a spinning galaxy']);
+
+    // Usage messages when args are missing.
+    for (const cmd of ['repo', 'audiobook', 'video']) {
+      const usage = ctxWith([]);
+      await handlers[cmd]?.(usage.ctx);
+      expect(usage.replies.some((r) => r.includes('Usage'))).toBe(true);
+    }
+
+    // Not on the allowlist → ignored.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onRepo: () => Promise.resolve('no'),
+      onAudiobook: () => Promise.resolve(),
+      onVideo: () => Promise.resolve(),
+      allowedChatIds: ['7'],
+    });
+    const denied = ctxWith(['x'], 999);
+    await handlers['repo']?.(denied.ctx);
+    await handlers['audiobook']?.(denied.ctx);
+    await handlers['video']?.(denied.ctx);
+    expect(denied.replies).toEqual([]);
+
+    // Failures apologise.
+    registerHandlers(bot, {
+      runtime: runtimeWith('x'),
+      onRepo: () => Promise.reject(new Error('boom')),
+      onAudiobook: () => Promise.reject(new Error('boom')),
+      onVideo: () => Promise.reject(new Error('boom')),
+      logger: spyLogger(),
+    });
+    const rf = ctxWith(['x']);
+    await handlers['repo']?.(rf.ctx);
+    expect(rf.replies.some((r) => r.includes('Could not index'))).toBe(true);
+    const bf = ctxWith(['x']);
+    await handlers['audiobook']?.(bf.ctx);
+    expect(bf.replies.some((r) => r.includes('Could not narrate'))).toBe(true);
+    const vf = ctxWith(['x']);
+    await handlers['video']?.(vf.ctx);
+    expect(vf.replies.some((r) => r.includes('Could not generate that video'))).toBe(
+      true,
+    );
+  });
+
   it('registers /qr: generates, shows usage, rejects, and handles failure', async () => {
     const handlers: Record<string, Handler> = {};
     const bot: CommandBot = {

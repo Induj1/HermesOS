@@ -14,6 +14,9 @@ import type { MemoryStore } from './memory-store.js';
 /** The subject under which ingested document chunks live. */
 export const DOCS_SUBJECT = '__docs__';
 
+/** The subject under which ingested source-repo chunks live (for repo Q&A). */
+export const REPO_SUBJECT = '__repo__';
+
 /**
  * Split text into chunks of at most `maxChars`, preferring paragraph breaks.
  *
@@ -72,18 +75,20 @@ export interface Doc {
 }
 
 /**
- * Ingest documents into the store under DOCS_SUBJECT. Returns the number of
- * chunks stored. Each chunk is tagged with its source filename.
+ * Ingest documents into the store under `subject` (DOCS_SUBJECT by default;
+ * REPO_SUBJECT for repo Q&A). Returns the number of chunks stored. Each chunk is
+ * tagged with its source filename.
  */
 export async function ingestDocs(
   store: MemoryStore,
   docs: readonly Doc[],
+  subject: string = DOCS_SUBJECT,
 ): Promise<number> {
   let count = 0;
   for (const doc of docs) {
     for (const chunk of chunkText(doc.content)) {
       await store.remember({
-        subject: DOCS_SUBJECT,
+        subject,
         kind: 'fact',
         content: `[${doc.name}] ${chunk}`,
       });
