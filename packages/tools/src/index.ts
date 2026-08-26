@@ -83,6 +83,21 @@ export type { Permission } from './permissions.js';
 export { withMiddleware, withPermissions, withPermissionsAll } from './middleware.js';
 export type { NextCall, ToolMiddleware } from './middleware.js';
 
+export {
+  autoApprove,
+  DEFAULT_APPROVAL_TIMEOUT_MS,
+  denyAll,
+  guard,
+  withApproval,
+  withApprovalAll,
+} from './approval.js';
+export type {
+  ApprovalDecision,
+  ApprovalOptions,
+  ApprovalRequest,
+  Approver,
+} from './approval.js';
+
 export { toolset } from './toolset.js';
 export type { ToolSetOptions } from './toolset.js';
 
@@ -90,6 +105,7 @@ export { auditTool, callTool, spyTool, testContext } from './testing.js';
 export type { TestContextOptions } from './testing.js';
 
 export {
+  ApprovalDeniedError,
   InputInvalidError,
   InvalidDefinitionError,
   OutputInvalidError,
