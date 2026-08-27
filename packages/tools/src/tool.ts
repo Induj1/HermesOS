@@ -103,6 +103,20 @@ export interface ToolMetadata {
    * caller writes it down.
    */
   readonly idempotent?: boolean;
+  /**
+   * Why a person must approve each call, before it runs.
+   *
+   * A string rather than a boolean, for the same reason {@link ToolMetadata.deprecated}
+   * is one: the field exists to be read by somebody deciding, and
+   * `requiresApproval: true` gives an operator nothing to decide *with*. What
+   * goes here is shown verbatim in the approval request — "deletes objects from
+   * the production bucket", not "destructive".
+   *
+   * Declared, never enforced *here* — see `approval.ts`. A tool saying it needs a
+   * person is making a statement about its own effects; whether anyone is
+   * actually asked, and how, is the host's decision.
+   */
+  readonly requiresApproval?: string;
   /** Anything else. Carried, never interpreted. */
   readonly metadata?: Readonly<Record<string, unknown>>;
 }

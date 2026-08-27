@@ -22,6 +22,7 @@ export type ToolErrorCode =
   | 'INPUT_INVALID'
   | 'OUTPUT_INVALID'
   | 'PERMISSION_DENIED'
+  | 'APPROVAL_DENIED'
   | 'TOOL_NOT_FOUND'
   | 'INVALID_DEFINITION';
 
@@ -133,6 +134,40 @@ export class PermissionDeniedError extends ToolError {
     );
     this.tool = tool;
     this.permission = permission;
+  }
+}
+
+/**
+ * A person refused this call, or the gate could not be operated.
+ *
+ * Separate from {@link PermissionDeniedError} because the two are fixed by
+ * different people doing different things. A permission is a wiring fact an
+ * operator changes once and for all; a denial is a judgement about *this* call,
+ * and the identical call may be approved an hour from now.
+ *
+ * The message tells a model to replan rather than retry, and that is the whole
+ * reason `reason` is carried through: an agent told only "denied" sends the same
+ * arguments again, which is the one thing that cannot help.
+ */
+export class ApprovalDeniedError extends ToolError {
+  readonly tool: string;
+  /** Why the tool said it needed a person, as the tool declared it. */
+  readonly requirement: string;
+  /** Why the person said no, when they gave a reason. */
+  readonly reason?: string;
+
+  constructor(tool: string, requirement: string, reason?: string) {
+    super(
+      'APPROVAL_DENIED',
+      `${tool} requires approval before it runs (${requirement}), and it was not ` +
+        `approved` +
+        (reason === undefined ? '' : `: ${reason}`) +
+        `. Retrying with the same arguments will not help; a different approach, ` +
+        `or a smaller request, might`,
+    );
+    this.tool = tool;
+    this.requirement = requirement;
+    if (reason !== undefined) this.reason = reason;
   }
 }
 
