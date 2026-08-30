@@ -52,6 +52,15 @@ export interface ToolDescription {
   readonly version?: string;
   readonly deprecated?: string;
   readonly idempotent?: boolean;
+  /**
+   * Why a person must approve each call, when the tool says one must.
+   *
+   * Carried separately from the rendered description because the two audiences
+   * differ: a model needs it folded into prose to plan around, and an operator
+   * building an approval queue needs it as a field they can read without
+   * parsing English back out of a paragraph.
+   */
+  readonly requiresApproval?: string;
 }
 
 export interface DescribeOptions {
@@ -73,6 +82,20 @@ export interface DescribeOptions {
    * the only channel to that is the description.
    */
   readonly deprecation?: boolean;
+  /**
+   * Say so in the description when a tool needs a person. Default true.
+   *
+   * The same argument as {@link DescribeOptions.deprecation}: a model cannot act
+   * on a field it is never shown, and `ToolDefinition` carries only a name, a
+   * description, and parameters. Prose is the one channel to the thing doing the
+   * planning.
+   *
+   * Worth leaving on. A model that does not know a call will block treats the
+   * pause as a hang and the denial as its own error, and its usual repair for
+   * both is to try again — which is the one response an approval gate is built
+   * to make pointless.
+   */
+  readonly approval?: boolean;
 }
 
 /**
@@ -98,6 +121,9 @@ export function describe(tool: Tool, options: DescribeOptions = {}): ToolDescrip
     ...(hermes.version === undefined ? {} : { version: hermes.version }),
     ...(hermes.deprecated === undefined ? {} : { deprecated: hermes.deprecated }),
     ...(hermes.idempotent === undefined ? {} : { idempotent: hermes.idempotent }),
+    ...(hermes.requiresApproval === undefined
+      ? {}
+      : { requiresApproval: hermes.requiresApproval }),
   };
 }
 
@@ -190,6 +216,16 @@ function renderDescription(tool: HermesTool, options: DescribeOptions): string {
     // First, not last. A model reading a long description may act on the first
     // sentence, and "do not use this" is the sentence that matters.
     parts.unshift(`DEPRECATED: ${tool.deprecated}`);
+  }
+
+  if (options.approval !== false && tool.requiresApproval !== undefined) {
+    // Appended rather than prepended, which is the opposite of `deprecated` and
+    // deliberate. "Do not use this" changes whether a model should choose the
+    // tool at all, so it goes first. This does not: the tool is still the right
+    // one, and what changes is what happens when it is called. A model that
+    // knows a call will pause can say so, or sequence the risky step last,
+    // instead of reporting the eventual denial as a failure it caused.
+    parts.push(`Requires human approval before it runs: ${tool.requiresApproval}`);
   }
 
   if (
