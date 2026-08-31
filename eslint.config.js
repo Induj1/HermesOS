@@ -9,7 +9,15 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   {
     // Flat config replaces .eslintignore. Anything generated or vendored.
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/*.tsbuildinfo'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/*.tsbuildinfo',
+      '**/hermes-workspace/**',
+      '**/.venv-sd/**',
+      '**/assets/**',
+    ],
   },
 
   js.configs.recommended,

@@ -83,6 +83,16 @@ tmp/
 *.swp
 *.swo
 
+# Claude Code local settings — may hold secrets (e.g. bot tokens) and
+# machine-specific permission rules. Never commit.
+.claude/settings.local.json
+
+# The Telegram agent's runtime workspace — files the bot writes at runtime.
+hermes-workspace/
+
+# The Telegram agent's persistent data (memory store).
+hermes-data/
+
 # ---------------------------------------------------------------------------
 # OS
 # ---------------------------------------------------------------------------
@@ -90,3 +100,9 @@ tmp/
 .AppleDouble
 Thumbs.db
 desktop.ini
+
+# The Telegram agent's ingest docs folder.
+hermes-docs/
+
+# Stable Diffusion python venv (torch + diffusers) for /imagine.
+.venv-sd/

@@ -1,8 +1,151 @@
 /**
- * @hermes/telegram — Telegram adapter — bridges chat messages to the kernel.
+ * @hermes/telegram-app — a Telegram bot that drives a HermesOS task-executing
+ * agent backed by a local Ollama model.
  *
- * Scaffold only: this package has no implementation yet. The export below
- * exists so the package has a valid entry point that builds and type-checks;
- * replace it with the real public surface.
+ * The pure, composable pieces live here; `main.ts` (the `hermes-telegram` bin)
+ * wires them to config, real ports, and the long-poll loop.
  */
-export const PACKAGE_NAME = '@hermes/telegram';
+
+export { telegramSchema, type TelegramConfig } from './config.js';
+export { buildTools, type ToolDeps } from './tools.js';
+export { DEFAULT_DENY, guardedShell } from './shell-guard.js';
+export { renderDashboard, type DashboardData } from './dashboard.js';
+export { browserTools, type BrowsePort } from './browser.js';
+export { docTools, type RenderPdfPort } from './doc.js';
+export { githubTools } from './github.js';
+export { pythonTools, type PythonRunPort } from './python.js';
+export { isOcrRequest, ocrTools, type OcrRunPort } from './ocr.js';
+export { isRemoveBgRequest } from './bg.js';
+export {
+  parseTranslateCommand,
+  translateTools,
+  type TranslatePort,
+} from './translate.js';
+export { diagramTools, type DiagramRenderPort } from './diagram.js';
+export { isQrScanRequest } from './qr.js';
+export { lenientWorkspaceFs } from './workspace-fs.js';
+export {
+  MemoryStore,
+  cosineSimilarity,
+  type EmbedFn,
+  type MemoryItem,
+  type MemoryKind,
+  type NewMemory,
+  type ScoredItem,
+} from './memory-store.js';
+export {
+  DOCS_SUBJECT,
+  REPO_SUBJECT,
+  chunkText,
+  htmlToText,
+  ingestDocs,
+  type Doc,
+} from './rag.js';
+export { shouldIngestPath } from './repo.js';
+export { isExtractRequest } from './extract.js';
+export { withOwnerProfile } from './profile.js';
+export { buildCareerPrompt, type CareerTask } from './career.js';
+export { buildReviewPrompt } from './review.js';
+export {
+  ENCODINGS,
+  HASHES,
+  decode,
+  encode,
+  hash,
+  type Encoding,
+  type HashAlgo,
+} from './codec.js';
+export {
+  analyzeSecurityHeaders,
+  extractUrl,
+  formatSecurityReport,
+  type HeaderFinding,
+  type SecurityReport,
+} from './security.js';
+export { formatCves, nvdUrl, parseNvd, type Cve } from './cve.js';
+export { arxivUrl, formatPapers, parseArxiv, type Paper } from './arxiv.js';
+export {
+  APP_STATUSES,
+  formatApplication,
+  formatApplications,
+  isAppStatus,
+  parseApply,
+  type AppStatus,
+  type Application,
+} from './applications.js';
+export {
+  isInpaintRequest,
+  isUpscaleRequest,
+  parseInpaintTarget,
+  stemRequest,
+  type StemChoice,
+} from './media-fx.js';
+export {
+  isBlurFacesRequest,
+  isMemeRequest,
+  isStickerRequest,
+  parseMeme,
+} from './photo-fx.js';
+export {
+  formatSchedule,
+  localCronToUtc,
+  parseSchedule,
+  type ParsedSchedule,
+  type ScheduledTask,
+} from './schedules.js';
+export {
+  formatBriefing,
+  formatCiAlert,
+  formatStandup,
+  isCiFailing,
+  type Briefing,
+  type CiStatus,
+  type RepoActivity,
+  type WeatherSummary,
+} from './briefing.js';
+export {
+  COORDINATOR,
+  RouterReasoner,
+  buildTeamRuntime,
+  routeTo,
+  type Specialist,
+  type TeamRuntimeDeps,
+} from './team.js';
+export {
+  isTransformRequest,
+  largestPhoto,
+  visionPrompt,
+  type PhotoSize,
+} from './vision.js';
+export {
+  humanDuration,
+  parseDuration,
+  parseReminder,
+  type Reminder,
+} from './reminders.js';
+export {
+  formatResults,
+  parseDuckDuckGo,
+  searchTools,
+  type SearchResult,
+} from './search.js';
+export { toolExecutor, type ExecutorDeps } from './executor.js';
+export {
+  AGENT_NAME,
+  buildAgentRuntime,
+  replyText,
+  type AgentRuntimeDeps,
+} from './agent.js';
+export {
+  handleMessage,
+  isAllowed,
+  registerHandlers,
+  type BotDeps,
+  type CommandBot,
+} from './bot.js';
+export {
+  ConversationHistory,
+  systemPromptWithHistory,
+  type Role,
+  type Turn,
+} from './conversation.js';
